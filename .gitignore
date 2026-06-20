@@ -23,6 +23,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Claude Code: keep shared config (launch.json), ignore personal/local settings
+.claude/settings.local.json
+
 # cached OSM dumps (we cache in localStorage at runtime; keep large dumps out of git)
 *.osm.json
 src/world/cache/

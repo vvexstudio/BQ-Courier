@@ -47,10 +47,11 @@ completeness is explicitly *not* the bar.
 > is the riskiest part, so it goes first — if the map pipeline works, everything
 > else builds on top.
 
-- **Status:** scaffolded & runnable. Needs in-browser verification against live
-  Overpass data (building heights, bike-lane coverage, framerate).
-- **Next up:** verify the data quality for the chosen bbox, then start Phase 2
-  (the bike + controls).
+- **Status:** ✅ verified live. The chosen bbox loads **1779 buildings, 1221
+  roads, 64 bike lanes at 60fps**. Geometry + street grid read correctly. Dusk
+  palette was too dark on first run; brightened and bike-lane glow boosted.
+- **Next up:** confirm the brighter styling looks right, capture a README
+  screenshot, then start Phase 2 (the bike + controls).
 
 ---
 
@@ -67,8 +68,10 @@ Phases are sequential but the deferred list is designed-for, not built.
 - [x] Road ribbons + highlighted bike lanes (`world/roads.js`)
 - [x] Stylized dusk scene: lights, fog, tone mapping (`render/scene.js`)
 - [x] Orbit camera to fly around the loaded world (`main.js`)
-- [ ] **Verify live**: confirm WB building heights, bike-lane coverage, and 60fps
-      in-browser; capture a screenshot for the README.
+- [x] **Verify live**: 1779 buildings / 1221 roads / 64 bike lanes @ 60fps in WB.
+- [x] Re-tune styling: first dusk pass was too dark; brightened palette + lights,
+      boosted bike-lane emissive glow.
+- [ ] Capture a clean screenshot for the README (post-styling).
 - [ ] Graceful fallback / bundled sample OSM dump for offline + demo reliability.
 - [ ] Tune bbox so the start + a plausible delivery address are both in-frame.
 
@@ -162,6 +165,10 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-06-19** — Phase 1 verified live in-browser: South Williamsburg loads
+  1779 buildings, 1221 roads, 64 bike lanes at 60fps. First dusk styling pass
+  was too dark — brightened palette + hemisphere/rim lights, raised tone-mapping
+  exposure, and boosted bike-lane emissive glow + width for legibility.
 - **2026-06-19** — Project scaffolded. Phase 1 world pipeline implemented and
   runnable: Vite + Three.js setup; OSM Overpass fetch with caching; lat/lng→meters
   projection; building extrusion; road ribbons with highlighted bike lanes;

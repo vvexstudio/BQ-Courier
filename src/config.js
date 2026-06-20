@@ -24,20 +24,21 @@ export const OVERPASS = {
 export const ROAD_WIDTHS = {
   motorway: 14, trunk: 13, primary: 12, secondary: 10, tertiary: 8,
   residential: 7, living_street: 6, unclassified: 7, service: 4,
-  cycleway: 2.6, footway: 2, path: 2, pedestrian: 3,
+  cycleway: 3.6, footway: 2, path: 2, pedestrian: 3,
   _default: 6,
 };
 
-// 2007-Need-for-Speed-ish dusk palette.
+// 2007-Need-for-Speed-ish dusk palette. Moody blue hour, but legible — not
+// "lights off". Streets read as wet asphalt, buildings catch warm sun + cool rim.
 export const PALETTE = {
-  sky: 0x10131f,
-  fog: 0x10131f,
-  ground: 0x0c0e16,
-  building: 0x262b38,
-  buildingTop: 0x323848,
-  road: 0x14161e,
-  roadEdge: 0x2a2f3d,
-  bikeLane: 0x2ec27e, // the gag depends on these being unmissable
+  sky: 0x1b2138,
+  fog: 0x1b2138,
+  ground: 0x222839,
+  building: 0x44506b,
+  buildingTop: 0x556280,
+  road: 0x2b3142,
+  roadEdge: 0x424a60,
+  bikeLane: 0x2ff58c, // the gag depends on these being unmissable
   sun: 0xffd9a0,
-  rim: 0x5b7cff,
+  rim: 0x6f8dff,
 };

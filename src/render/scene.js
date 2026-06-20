@@ -11,7 +11,7 @@ export function createScene(container) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.35;
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -34,11 +34,11 @@ export function createScene(container) {
   Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s });
   scene.add(sun);
 
-  const rim = new THREE.DirectionalLight(PALETTE.rim, 0.5);
+  const rim = new THREE.DirectionalLight(PALETTE.rim, 0.7);
   rim.position.set(-160, 120, -140);
   scene.add(rim);
 
-  scene.add(new THREE.HemisphereLight(PALETTE.sky, PALETTE.ground, 0.35));
+  scene.add(new THREE.HemisphereLight(PALETTE.sky, PALETTE.ground, 0.85));
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

@@ -39,6 +39,8 @@ async function init() {
   try {
     const { world, stats } = await buildWorld(WORLD.bbox, { onStatus: setStatus });
     scene.add(world);
+    // Dev handle for inspecting the scene graph from the console.
+    window.__bq = { scene, camera, world, controls, stats };
     setStatus(
       `${WORLD.name} loaded — ${stats.buildings} buildings, ` +
       `${stats.roads} roads, ${stats.bikeLanes} bike lanes. Drag to look around.`

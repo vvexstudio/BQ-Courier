@@ -97,8 +97,8 @@ export function buildRoads(roadWays) {
       new THREE.MeshStandardMaterial({
         color: PALETTE.bikeLane,
         emissive: PALETTE.bikeLane,
-        emissiveIntensity: 0.35,
-        roughness: 0.7,
+        emissiveIntensity: 1.0,
+        roughness: 0.6,
       })
     );
     mesh.name = 'bikelanes';
