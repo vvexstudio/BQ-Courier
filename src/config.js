@@ -24,7 +24,7 @@ export const OVERPASS = {
 export const ROAD_WIDTHS = {
   motorway: 14, trunk: 13, primary: 12, secondary: 10, tertiary: 8,
   residential: 7, living_street: 6, unclassified: 7, service: 4,
-  cycleway: 3.6, footway: 2, path: 2, pedestrian: 3,
+  cycleway: 5, footway: 2, path: 2, pedestrian: 3,
   _default: 6,
 };
 
@@ -33,12 +33,12 @@ export const ROAD_WIDTHS = {
 export const PALETTE = {
   sky: 0x1b2138,
   fog: 0x1b2138,
-  ground: 0x222839,
+  ground: 0x0e1018, // dark, so the lit asphalt clearly stands out against it
   building: 0x44506b,
   buildingTop: 0x556280,
-  road: 0x2b3142,
-  roadEdge: 0x424a60,
-  bikeLane: 0x2ff58c, // the gag depends on these being unmissable
+  road: 0x5a6178, // wet-asphalt grey — must read as a street, not a void
+  roadEdge: 0x6b7390, // (unused yet)
+  bikeLane: 0x39ff9a, // the gag depends on these being unmissable
   sun: 0xffd9a0,
   rim: 0x6f8dff,
 };

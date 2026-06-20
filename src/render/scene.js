@@ -24,7 +24,7 @@ export function createScene(container) {
   camera.position.set(120, 140, 180);
 
   // Key (warm sodium sun), rim (cool blue), and ambient fill.
-  const sun = new THREE.DirectionalLight(PALETTE.sun, 1.6);
+  const sun = new THREE.DirectionalLight(PALETTE.sun, 1.25);
   sun.position.set(180, 260, 120);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -38,7 +38,7 @@ export function createScene(container) {
   rim.position.set(-160, 120, -140);
   scene.add(rim);
 
-  scene.add(new THREE.HemisphereLight(PALETTE.sky, PALETTE.ground, 0.85));
+  scene.add(new THREE.HemisphereLight(PALETTE.sky, PALETTE.ground, 1.05));
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

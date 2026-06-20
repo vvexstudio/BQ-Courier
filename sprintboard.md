@@ -165,6 +165,13 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-06-19** — **Bugfix: roads & bike lanes were invisible from above.** The
+  ribbon triangles were wound facing down (−Y normals), so `FrontSide` materials
+  culled them at any top-down angle — the street grid read as black voids. Set
+  road + bike-lane materials to `DoubleSide`. Also raised road/ground contrast
+  (lit asphalt vs. dark ground), softened the sun + raised hemisphere fill so
+  shadowed streets stay legible, and widened/brightened bike lanes. Streets and
+  the green bike network now render correctly.
 - **2026-06-19** — Phase 1 verified live in-browser: South Williamsburg loads
   1779 buildings, 1221 roads, 64 bike lanes at 60fps. First dusk styling pass
   was too dark — brightened palette + hemisphere/rim lights, raised tone-mapping

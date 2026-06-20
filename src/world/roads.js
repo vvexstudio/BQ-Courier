@@ -84,6 +84,7 @@ export function buildRoads(roadWays) {
       mergeGeometries(roadGeoms, false),
       new THREE.MeshStandardMaterial({
         color: PALETTE.road, roughness: 0.95, metalness: 0.0,
+        side: THREE.DoubleSide, // ribbons are wound facing down; show from above
       })
     );
     mesh.receiveShadow = true;
@@ -97,8 +98,9 @@ export function buildRoads(roadWays) {
       new THREE.MeshStandardMaterial({
         color: PALETTE.bikeLane,
         emissive: PALETTE.bikeLane,
-        emissiveIntensity: 1.0,
+        emissiveIntensity: 1.4,
         roughness: 0.6,
+        side: THREE.DoubleSide,
       })
     );
     mesh.name = 'bikelanes';
