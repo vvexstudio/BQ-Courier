@@ -8,9 +8,10 @@ mid-block — to deliver on time for points.
 > **Vibe:** _Crazy Taxi_ for the dynamics and intensity, 2007 _Need for Speed_
 > for the look. Fast, funny, and built to be screenshotted.
 
-This is an early MVP. The current build is **Phase 1: the world pipeline** —
-real South Williamsburg streets and buildings pulled from OpenStreetMap and
-rendered as a stylized, navigable 3D scene.
+This is an early MVP. **Phase 1 (the world pipeline) is complete**: real South
+Williamsburg is pulled from OpenStreetMap and rendered as a stylized, navigable
+3D scene — **1779 buildings, 1221 roads, and 64 highlighted bike lanes at 60fps**,
+with an orbit camera to fly around. Next up is **Phase 2: the bike + controls**.
 
 📋 **[sprintboard.md](./sprintboard.md) is the source of truth** for the roadmap,
 changelog, and what to work on next. Read it before starting work; update it

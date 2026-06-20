@@ -41,17 +41,23 @@ completeness is explicitly *not* the bar.
 
 ## 🏃 Current sprint
 
-**Sprint 01 — World pipeline (Phase 1)**
+**Sprint 02 — The bike + controls (Phase 2)**
 
-> Goal: real Williamsburg geometry loads as a stylized, navigable 3D scene. This
-> is the riskiest part, so it goes first — if the map pipeline works, everything
-> else builds on top.
+> Goal: put a rideable bike in the verified world. Arcade movement, chase cam,
+> and wall collision — the moment it stops being a tech demo and starts being a
+> game.
 
-- **Status:** ✅ verified live. The chosen bbox loads **1779 buildings, 1221
-  roads, 64 bike lanes at 60fps**. Geometry + street grid read correctly. Dusk
-  palette was too dark on first run; brightened and bike-lane glow boosted.
-- **Next up:** confirm the brighter styling looks right, capture a README
-  screenshot, then start Phase 2 (the bike + controls).
+- **Status:** not started. Phase 1 (world pipeline) is ✅ complete and stable.
+- **Next up:** placeholder bike + rider, arcade physics (accel/brake/lean), WASD
+  steering, third-person chase cam, building collision. See Phase 2 below.
+
+> **Sprint 01 — World pipeline (Phase 1): ✅ DONE.** Real South Williamsburg
+> loads as a stylized, navigable 3D scene — **1779 buildings, 1221 roads, 64
+> bike lanes at 60fps**, verified live. Shipped through three iterations: initial
+> scaffold → styling (first dusk pass was too dark) → two rendering bugfixes
+> (roads invisible from above due to ribbon winding; z-fighting + shadow acne on
+> the flat layers). Streets and the green bike network render correctly with no
+> artifacts at any camera angle. Carryover polish items tracked under Phase 1.
 
 ---
 
@@ -59,7 +65,7 @@ completeness is explicitly *not* the bar.
 
 Phases are sequential but the deferred list is designed-for, not built.
 
-### Phase 1 — World pipeline ⏳ (in progress)
+### Phase 1 — World pipeline ✅ (complete)
 
 - [x] Project scaffold (Vite + Three.js, dev/build scripts)
 - [x] Lat/lng → local-meters projection (`world/geo.js`)
@@ -71,7 +77,13 @@ Phases are sequential but the deferred list is designed-for, not built.
 - [x] **Verify live**: 1779 buildings / 1221 roads / 64 bike lanes @ 60fps in WB.
 - [x] Re-tune styling: first dusk pass was too dark; brightened palette + lights,
       boosted bike-lane emissive glow.
-- [ ] Capture a clean screenshot for the README (post-styling).
+- [x] Bugfix: roads/bike lanes invisible from above (ribbon winding) → DoubleSide.
+- [x] Bugfix: z-fighting + shadow acne on flat layers → log depth buffer, layer
+      separation, shadow bias. Verified clean at all angles.
+
+**Carryover (polish, not blocking Phase 2):**
+
+- [ ] Capture a clean screenshot for the README.
 - [ ] Graceful fallback / bundled sample OSM dump for offline + demo reliability.
 - [ ] Tune bbox so the start + a plausible delivery address are both in-frame.
 
@@ -146,6 +158,12 @@ Short ADR-style records of choices that aren't obvious from the code.
 - **2026-06-19 — MVP location: South Williamsburg (~600m bbox).** Hasidic +
   hipster overlap is exactly the cultural collision the game roasts. Small bbox
   keeps Overpass happy and holds 60fps.
+- **2026-06-19 — Flat-layer rendering: DoubleSide ribbons + logarithmic depth.**
+  Road/bike ribbons are built as per-segment quads wound facing down, so they
+  must render `DoubleSide` to be visible from above. Ground/road/bike are nearly
+  coplanar, so we use `logarithmicDepthBuffer` + explicit vertical separation
+  (ground −0.4, road 0.15, bike 0.4) instead of `polygonOffset` (which is
+  unreliable with a log depth buffer). Shadow `bias`/`normalBias` handle acne.
 
 ---
 
