@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BQ Courier — Williamsburg</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d14; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+
+      .hud {
+        position: fixed;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color: #cdd6f4;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+        pointer-events: none;
+        user-select: none;
+      }
+      #title { top: 14px; left: 16px; font-size: 13px; letter-spacing: 0.06em; }
+      #title b { color: #f5c2e7; }
+      #stats { top: 14px; right: 16px; font-size: 12px; text-align: right; opacity: 0.85; }
+      #status {
+        bottom: 16px; left: 16px; font-size: 12px;
+        background: rgba(11, 13, 20, 0.6);
+        padding: 6px 10px; border-radius: 6px;
+        pointer-events: none;
+      }
+      #help { bottom: 16px; right: 16px; font-size: 11px; opacity: 0.6; text-align: right; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="title" class="hud">
+      <b>BQ COURIER</b> · South Williamsburg · phase&nbsp;1: world pipeline
+    </div>
+    <div id="stats" class="hud">booting…</div>
+    <div id="status" class="hud">loading…</div>
+    <div id="help" class="hud">
+      drag to orbit · scroll to zoom · right-drag to pan
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
