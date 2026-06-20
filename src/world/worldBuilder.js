@@ -16,7 +16,7 @@ function buildGround() {
     color: PALETTE.ground, roughness: 1.0, metalness: 0.0,
   });
   const mesh = new THREE.Mesh(geom, mat);
-  mesh.position.y = -0.02;
+  mesh.position.y = -0.4;
   mesh.receiveShadow = true;
   mesh.name = 'ground';
   return mesh;

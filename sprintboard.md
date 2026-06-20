@@ -165,6 +165,12 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-06-19** — **Fix z-fighting + shadow acne.** Flat layers (ground/road/
+  bike) sat within a few cm and fought in the depth buffer; the directional light
+  also produced moiré self-shadow speckle. Enabled `logarithmicDepthBuffer`,
+  raised the camera near plane (0.1→1), widened layer separation (ground −0.4,
+  road 0.15, bike 0.4), and added shadow `bias`/`normalBias`. Verified clean at
+  both street level and high/far oblique angles.
 - **2026-06-19** — **Bugfix: roads & bike lanes were invisible from above.** The
   ribbon triangles were wound facing down (−Y normals), so `FrontSide` materials
   culled them at any top-down angle — the street grid read as black voids. Set

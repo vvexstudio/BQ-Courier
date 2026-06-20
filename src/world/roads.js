@@ -11,8 +11,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { project } from './geo.js';
 import { ROAD_WIDTHS, PALETTE } from '../config.js';
 
-const ROAD_Y = 0.06;
-const BIKE_Y = 0.12; // sits just above the road surface
+const ROAD_Y = 0.15;
+const BIKE_Y = 0.4; // sits clearly above the road surface (avoids z-fighting)
 
 function isBikeLane(tags = {}) {
   if (tags.highway === 'cycleway') return true;

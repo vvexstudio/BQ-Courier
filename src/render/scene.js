@@ -5,7 +5,13 @@ import * as THREE from 'three';
 import { PALETTE } from '../config.js';
 
 export function createScene(container) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  // logarithmicDepthBuffer dramatically improves precision across our large
+  // near/far range, which kills the z-fighting between the near-coplanar
+  // ground / road / bike-lane layers.
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    logarithmicDepthBuffer: true,
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -19,7 +25,7 @@ export function createScene(container) {
   scene.fog = new THREE.Fog(PALETTE.fog, 200, 900);
 
   const camera = new THREE.PerspectiveCamera(
-    60, window.innerWidth / window.innerHeight, 0.1, 4000
+    60, window.innerWidth / window.innerHeight, 1, 3000
   );
   camera.position.set(120, 140, 180);
 
@@ -32,6 +38,9 @@ export function createScene(container) {
   sun.shadow.camera.far = 900;
   const s = 400;
   Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s });
+  // Kill shadow acne (the moiré speckle on flat roofs/streets).
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 1.0;
   scene.add(sun);
 
   const rim = new THREE.DirectionalLight(PALETTE.rim, 0.7);
