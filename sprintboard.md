@@ -41,15 +41,23 @@ completeness is explicitly *not* the bar.
 
 ## 🏃 Current sprint
 
-**Sprint 02 — The bike + controls (Phase 2)**
+**Sprint 03 — The delivery loop (Phase 3)**
 
-> Goal: put a rideable bike in the verified world. Arcade movement, chase cam,
-> and wall collision — the moment it stops being a tech demo and starts being a
-> game.
+> Goal: turn the rideable world into a *game with a point*. An order spawns at a
+> real WB address, an on-screen arrow points the way, arriving in the drop zone
+> fires "Delivered!", and a score + timer track the run.
 
-- **Status:** not started. Phase 1 (world pipeline) is ✅ complete and stable.
-- **Next up:** placeholder bike + rider, arcade physics (accel/brake/lean), WASD
-  steering, third-person chase cam, building collision. See Phase 2 below.
+- **Status:** not started. Phases 1 (world) and 2 (bike + controls) are ✅ done.
+- **Next up:** order spawn at a target address, waypoint marker/arrow, drop-zone
+  arrival detection, score + timer. See Phase 3 below.
+
+> **Sprint 02 — The bike + controls (Phase 2): ✅ DONE.** A courier bike now
+> rides the verified world. Placeholder bike + rider, arcade physics
+> (accel/brake/reverse, speed-scaled steering, lean-into-turns), WASD/arrow
+> steering, a Crazy-Taxi chase cam that pulls back with speed, and grid-bucketed
+> building collision with axis-slide resolution. Spawns on the nearest road
+> facing down it; 'O' toggles a debug free-cam. Verified live: rides at ~72 km/h,
+> stops dead at walls, 148fps.
 
 > **Sprint 01 — World pipeline (Phase 1): ✅ DONE.** Real South Williamsburg
 > loads as a stylized, navigable 3D scene — **1779 buildings, 1221 roads, 64
@@ -87,13 +95,16 @@ Phases are sequential but the deferred list is designed-for, not built.
 - [ ] Graceful fallback / bundled sample OSM dump for offline + demo reliability.
 - [ ] Tune bbox so the start + a plausible delivery address are both in-frame.
 
-### Phase 2 — The bike + controls
+### Phase 2 — The bike + controls ✅ (complete)
 
-- [ ] Placeholder bicycle model + rider
-- [ ] Arcade physics: accel, braking, lean into turns (feel > simulation)
-- [ ] WASD / arrow steering
-- [ ] Third-person chase cam (Crazy-Taxi style)
-- [ ] Collision against buildings (can't drive through walls)
+- [x] Placeholder bicycle model + rider (`entities/bike.js`)
+- [x] Arcade physics: accel, braking, reverse, lean into turns (`game/bikeController.js`)
+- [x] WASD / arrow steering + Space brake (`game/input.js`)
+- [x] Third-person chase cam, pulls back with speed (`render/chaseCam.js`)
+- [x] Collision against buildings via footprint grid (`game/collision.js`)
+- [x] Spawn on nearest road, facing down it (`world/worldBuilder.js`)
+- [x] Debug free-cam toggle ('O') retained from Phase 1's OrbitControls
+- [x] **Verify live**: rides to ~72 km/h, leans into turns, stops at walls, 148fps.
 
 ### Phase 3 — The delivery loop
 
@@ -158,6 +169,23 @@ Short ADR-style records of choices that aren't obvious from the code.
 - **2026-06-19 — MVP location: South Williamsburg (~600m bbox).** Hasidic +
   hipster overlap is exactly the cultural collision the game roasts. Small bbox
   keeps Overpass happy and holds 60fps.
+- **2026-06-21 — Bike physics: heading *is* travel direction.** No tire/slip
+  model or velocity vector — `heading` is yaw and the bike always moves along its
+  forward axis. Steering authority scales down with speed (twitchy slow, planted
+  fast) and is killed near standstill so it can't pivot in place; lean is a purely
+  cosmetic chassis roll. This is the Crazy-Taxi "feel > sim" call from Phase 1,
+  made concrete. Reverse inverts steering.
+- **2026-06-21 — Collision: footprint grid + axis-slide, not raycasts.**
+  Buildings render as one merged mesh, so per-frame raycasts are awkward. The
+  builder hands the collider the flat XZ footprint polygons; they're bucketed into
+  a 24m uniform grid, and we point-in-polygon test only the bike's current cell.
+  Resolution is arcade: on a blocked move, retry each axis alone so the bike
+  slides along walls instead of sticking, and bleed speed on contact. Bike is
+  treated as a point (no radius) — fine at building scale, revisit if it clips.
+- **2026-06-21 — Spawn on the nearest road vertex.** Rather than trust the bbox
+  center (which can land inside a building), the builder picks the road-network
+  vertex closest to the origin and faces the bike along that segment. Robust to
+  bbox retuning and guarantees we start on asphalt pointing down a street.
 - **2026-06-19 — Flat-layer rendering: DoubleSide ribbons + logarithmic depth.**
   Road/bike ribbons are built as per-segment quads wound facing down, so they
   must render `DoubleSide` to be visible from above. Ground/road/bike are nearly
@@ -183,6 +211,24 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-06-21** — **Fix bike "crabbing" / broken turning.** The controller moved
+  the bike (and chase cam) along `forward = (sin h, -cos h)`, but Three.js
+  `group.rotation.y = h` actually points the model along `(-sin h, -cos h)` — the
+  X components have opposite signs, so once you turned, the body pointed one way
+  while the bike slid another and steering felt broken. Unified everything on the
+  Three.js-native convention `forward = (-sin h, -cos h)` (forwardVec, chaseCam,
+  spawn heading), flipped the steer sign so D/right still turns right, and
+  re-derived the lean so it tips into the turn. Verified on screen: body tracks
+  travel, banks into turns, no crabbing.
+- **2026-06-21** — **Phase 2 complete: the bike rides.** Added a placeholder
+  bike + rider (`entities/bike.js`), arcade physics (`game/bikeController.js`:
+  accel/brake/reverse, speed-scaled steering, lean), WASD/arrow + Space input
+  (`game/input.js`), a chase cam that pulls back with speed (`render/chaseCam.js`),
+  and building collision via a footprint grid with axis-slide resolution
+  (`game/collision.js`). Builder now exports building footprints + a road-based
+  spawn. `main.js` reworked into a clamped fixed-step game loop with a HUD speed
+  readout and an 'O' debug free-cam. Verified live: accelerates to ~72 km/h,
+  leans into turns, stops dead at walls (never clips through), holds 148fps.
 - **2026-06-19** — **Fix z-fighting + shadow acne.** Flat layers (ground/road/
   bike) sat within a few cm and fought in the depth buffer; the directional light
   also produced moiré self-shadow speckle. Enabled `logarithmicDepthBuffer`,

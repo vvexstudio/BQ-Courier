@@ -28,6 +28,22 @@ export const ROAD_WIDTHS = {
   _default: 6,
 };
 
+// Arcade bike feel (Phase 2). Tuned for fun, not realism — a courier bike that
+// accelerates like a moped and turns like a shopping cart on purpose.
+export const BIKE = {
+  maxSpeed: 20,        // m/s forward top speed (~45 mph; arcade-fast)
+  maxReverse: 5,       // m/s
+  accel: 16,           // m/s^2 throttle
+  brakeDecel: 34,      // m/s^2 active braking (Space / reverse-into-motion)
+  rollDrag: 6,         // m/s^2 passive deceleration when coasting
+  turnRate: 2.6,       // rad/s peak yaw rate
+  // Steering authority falls off at speed (twitchy when slow, planted when fast)
+  // and is killed near standstill so the bike doesn't pivot in place.
+  turnSpeedFalloff: 0.045,
+  maxLean: 0.5,        // rad — how far the chassis rolls into a hard turn
+  hitSpeedKeep: 0.35,  // fraction of speed retained on a wall scrape
+};
+
 // 2007-Need-for-Speed-ish dusk palette. Moody blue hour, but legible — not
 // "lights off". Streets read as wet asphalt, buildings catch warm sun + cool rim.
 export const PALETTE = {

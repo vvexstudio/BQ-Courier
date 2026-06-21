@@ -22,15 +22,19 @@ function heightForTags(tags = {}) {
 
 export function buildBuildings(buildingWays) {
   const geoms = [];
+  // World-space XZ footprint rings, kept for the collider (Phase 2).
+  const footprints = [];
 
   for (const way of buildingWays) {
     const ring = way.geometry;
     if (!ring || ring.length < 4) continue; // need a closed-ish ring
 
     const shape = new THREE.Shape();
+    const footprint = [];
     let started = false;
     for (const node of ring) {
       const { x, z } = project(node.lat, node.lon);
+      footprint.push({ x, z });
       // Shape lives in XY; we store world-Z as -Y so that after rotateX(-90)
       // it maps back to +Z (no mirroring vs. the road layer).
       if (!started) {
@@ -40,6 +44,7 @@ export function buildBuildings(buildingWays) {
         shape.lineTo(x, -z);
       }
     }
+    footprints.push(footprint);
 
     const height = heightForTags(way.tags);
     const geom = new THREE.ExtrudeGeometry(shape, {
@@ -53,6 +58,7 @@ export function buildBuildings(buildingWays) {
 
   const group = new THREE.Group();
   group.name = 'buildings';
+  group.userData.footprints = footprints;
   if (geoms.length === 0) return group;
 
   const merged = mergeGeometries(geoms, false);
