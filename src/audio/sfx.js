@@ -35,7 +35,10 @@ export function createSFX() {
       ctx = null; // audio stays off; the game must not care
     }
   }
+  // Keydown covers desktop; pointerdown covers thumbs. Either counts as the
+  // user gesture the AudioContext needs.
   window.addEventListener('keydown', unlock, { once: true });
+  window.addEventListener('pointerdown', unlock, { once: true });
 
   // --- building blocks ------------------------------------------------------
 

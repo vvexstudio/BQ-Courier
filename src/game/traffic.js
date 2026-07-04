@@ -289,6 +289,7 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
       label,
       group: new THREE.Group(), // placeholder; real meshes were added above
       hard: true,
+      yiddish: count > 1, // the families carry the neighborhood's voice
       peds, // kept so clearEntities can find them
       circles: () => peds.map((ped) => {
         const w = worldOf(ped, u);
@@ -456,6 +457,7 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
       label: 'THE DOUBLE-PARKED BUS',
       group: bus.group,
       hard: true,
+      yiddish: true,
       circles: () => [-3.2, 0, 3.2].map((o) => ({
         x: n.x + fx * o, z: n.z + fz * o, r: 1.5,
       })),
@@ -492,6 +494,7 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
       label: 'THE DEBATE',
       group: new THREE.Group(),
       hard: true,
+      yiddish: true,
       circles: () => elders.map((e) => ({ x: e.x, z: e.z, r: 0.55, stop: 'WATCH THE ELDERS' })),
       tick() {},
     });
@@ -679,6 +682,7 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
       label: 'THE NEIGHBORS',
       group: new THREE.Group(),
       hard: true,
+      yiddish: true,
       circles: () => peds.map((p) => ({
         x: p.wx ?? ox, z: p.wz ?? oz, r: 0.5, stop: 'EXCUSE YOU',
       })),
@@ -1572,6 +1576,19 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
     return any;
   }
 
+  // Are any of the neighborhood's own — families, strollers, the summit —
+  // within earshot? Main gates the Yiddish score-talk on this, so the city
+  // only kibitzes when someone's actually there to kibitz.
+  function nearNeighbors(bike, r = 26) {
+    for (const e of entities) {
+      if (!e.yiddish) continue;
+      for (const c of e.circles()) {
+        if (Math.hypot(bike.x - c.x, bike.z - c.z) < r) return true;
+      }
+    }
+    return false;
+  }
+
   // Escalation hook: arm the tier's spawn tables and wake the sky-dwellers.
   function setTier(n) {
     tier = n;
@@ -1580,7 +1597,7 @@ export function createTraffic({ scene, roadGraph, hydrants = [], onEvent }) {
   }
 
   return {
-    seedRoute, update, draft, ring, setTier, throwBagel,
+    seedRoute, update, draft, ring, setTier, throwBagel, nearNeighbors,
     get combo() { return combo; },
     // Dev-console visibility + manual set-piece triggers
     // (window.__bq.traffic._debug) — cheap and load-bearing for playtest

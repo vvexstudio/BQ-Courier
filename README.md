@@ -97,6 +97,10 @@ so subsequent loads are instant.
   **B** bell (scatters pedestrians and pigeons) · **Q** bagel toss (stuns
   zombies, hurries everyone else).
 - **O** toggles a debug free-cam (drag to orbit · scroll to zoom · right-drag to pan).
+- **On a phone** (portrait): the bike auto-throttles from your first touch;
+  hold the bottom corners to steer, and use the right-edge buttons — HOP,
+  BOOST (hold), BRAKE (hold; keeps holding to reverse), BELL, BAGEL. Add
+  `?touch` to the URL to force the touch rig on desktop for debugging.
 - An order appears automatically — follow the amber route (or the chevron, or
   the minimap) to the pink beacon and ride into the ring before the clock runs out.
 - The street fights back: swerve the bike-lane blockers, watch for opening car

@@ -25,6 +25,7 @@ import { createNavMarkers } from './render/markers.js';
 import { createRetroFX } from './render/retroFX.js';
 import { createSFX } from './audio/sfx.js';
 import { createHUD } from './ui/hud.js';
+import { createTouchControls } from './ui/touch.js';
 import { routeLength } from './world/roadGraph.js';
 import { WORLD, BOOST, POWERUPS } from './config.js';
 
@@ -39,6 +40,7 @@ function setStatus(msg) {
 const { renderer, scene, camera, lights } = createScene(app);
 const fx = createRetroFX(renderer); // 16-bit pixelation + fisheye pass
 const input = createInput();
+createTouchControls(); // portrait thumbs feed the same key events as WASD
 const chaseCam = createChaseCam(camera);
 const nav = createNavMarkers(scene);
 
@@ -93,9 +95,11 @@ async function init() {
       onEvent(type, data) {
         if (type === 'nearmiss') {
           delivery?.addScore(data.points);
-          // The neighborhood grades your riding. In Yiddish, obviously.
-          const call = data.combo >= 5 ? 'A MECHAYEH!'
-            : data.combo >= 3 ? 'SHTARK!'
+          // The neighborhood grades your riding — in Yiddish, but only when
+          // the neighborhood is actually standing there watching.
+          const watched = bikeCtl && traffic.nearNeighbors(bikeCtl.state);
+          const call = watched && data.combo >= 5 ? 'A MECHAYEH!'
+            : watched && data.combo >= 3 ? 'SHTARK!'
             : 'CLOSE CALL';
           hud.ping(`${call} +${data.points}${data.combo > 1 ? ` · ×${data.combo}` : ''}`);
           sfx.play('whoosh');
@@ -108,7 +112,8 @@ async function init() {
           hud.ping(data.text ?? 'SPLAT');
           sfx.play('blip');
         } else if (type === 'crash') {
-          hud.ping(`OY GEVALT — ${data.label}`, true);
+          const watched = bikeCtl && traffic.nearNeighbors(bikeCtl.state);
+          hud.ping(watched ? `OY GEVALT — ${data.label}` : `WIPEOUT — ${data.label}`, true);
           crashPinged = true;
         } else if (type === 'bump') {
           hud.ping(data.label, true);
@@ -200,13 +205,15 @@ async function init() {
           traffic.seedRoute(delivery?.state.route ?? null);
           powerups.seedRoute(delivery?.state.route ?? null);
         } else if (type === 'delivered') {
+          // "Mazel tov" is earned by delivering in front of the neighbors.
+          const watched = bikeCtl && traffic.nearNeighbors(bikeCtl.state);
           hud.toast(
-            `MAZEL TOV! +${data.points}`,
+            `${watched ? 'MAZEL TOV!' : 'DELIVERED!'} +${data.points}`,
             data.streak > 1 ? `×${data.streak} streak · +${data.bonus} time bonus` : `+${data.bonus} time bonus`
           );
           sfx.play('win');
         } else if (type === 'expired') {
-          hud.toast('ORDER EXPIRED', 'oy vey — streak lost, new order incoming', true);
+          hud.toast('ORDER EXPIRED', 'streak lost — new order incoming', true);
           sfx.play('lose');
         } else if (type === 'reroute') {
           // New line on the map = new gauntlet on the street.

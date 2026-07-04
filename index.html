@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>BQ Courier — Williamsburg</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -107,6 +107,38 @@
 
       .hidden { display: none !important; }
 
+      /* ---- touch controls: only mounted on touch devices (body.touch) ---- */
+      #touch { display: none; }
+      body.touch #touch { display: block; }
+      body.touch, body.touch #app { touch-action: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      .steer {
+        position: fixed; bottom: 0; width: 38vw; height: 26vh;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Press Start 2P', monospace; font-size: 26px;
+        color: rgba(255, 255, 255, 0.28);
+        user-select: none; -webkit-user-select: none;
+      }
+      #steer-left { left: 0; }
+      #steer-right { right: 0; }
+      #tbuttons {
+        position: fixed; right: 10px; bottom: 27vh;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      #tbuttons button {
+        width: 62px; height: 48px;
+        font-family: 'Press Start 2P', monospace; font-size: 7px;
+        color: var(--ink);
+        background: rgba(14, 18, 30, 0.5);
+        border: 2px solid rgba(255, 255, 255, 0.55);
+        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+        user-select: none; -webkit-user-select: none; touch-action: none;
+      }
+      #tbuttons button:active { background: rgba(255, 176, 46, 0.55); }
+      /* Touch layout: the map moves above the left steer zone, help goes away. */
+      body.touch #maphud { left: 12px; right: auto; bottom: 27vh; align-items: flex-start; }
+      body.touch #help { display: none; }
+      body.touch #status { display: none; }
+
       /* Long status line must never collide with the map/help. */
       #status { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #orderline { max-width: 60vw; margin-left: auto; margin-right: auto; }
@@ -163,6 +195,18 @@
 
     <div id="toast" class="hud"><div id="toast-main"></div><div class="sub" id="toast-sub"></div></div>
     <div id="ticker" class="hud"></div>
+
+    <div id="touch">
+      <div id="steer-left" class="steer">◀</div>
+      <div id="steer-right" class="steer">▶</div>
+      <div id="tbuttons">
+        <button id="tb-hop">HOP</button>
+        <button id="tb-boost">BOOST</button>
+        <button id="tb-brake">BRAKE</button>
+        <button id="tb-bell">BELL</button>
+        <button id="tb-bagel">BAGEL</button>
+      </div>
+    </div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -313,6 +313,21 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (later that night)** — **Mobile touch controls + Yiddish
+  toned down.** New `ui/touch.js`: a portrait-phone rig that mounts only on
+  touch devices (or with `?touch` for desktop debugging) and drives the
+  existing input system purely through synthetic KeyboardEvents — zero
+  changes to input/controller code. Auto-throttle from the first touch,
+  hold-to-steer zones in the bottom corners, right-edge button column (HOP
+  tap, BOOST hold, BRAKE hold = W↔S swap so a long press brakes then
+  reverses, BELL, BAGEL). Audio unlock now also listens for pointerdown.
+  Touch layout moves the minimap above the left steer zone; viewport meta
+  locks zoom. Verified at 375×812: layout correct, one pointerdown on the
+  steer zone = rolling at 10 km/h and banking. **Yiddish gating**: the
+  score-talk (MAZEL TOV / OY GEVALT / SHTARK / A MECHAYEH) now only appears
+  when the neighborhood is actually within ~26 m — families, strollers, or
+  the summit (`traffic.nearNeighbors`, entities flagged `yiddish`).
+  Everywhere else it's plain DELIVERED! / WIPEOUT / CLOSE CALL.
 - **2026-07-04 (night)** — **Deploy: GitHub Pages on every push to main.**
   `.github/workflows/deploy.yml` builds with Node 20 + `npm ci` and ships
   `dist/` through the official Pages artifact flow (no gh-pages branch).
