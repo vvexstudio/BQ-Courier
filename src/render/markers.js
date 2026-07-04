@@ -11,14 +11,18 @@
 import * as THREE from 'three';
 
 const ROUTE_Y = 0.55;      // above the bike lanes (0.4) so it always reads
-const ROUTE_WIDTH = 2.4;
+const ROUTE_WIDTH = 2.2;   // a guide line, not a runway (slimmed 2026-07-04)
 const ROUTE_COLOR = 0xffb02e;  // hot amber — distinct from the green bike lanes
 const BEACON_COLOR = 0xff4fa3; // magenta column, NFS-lollipop energy
 
+// Ribbon with UVs: u runs across the width (0..1), v is meters along the
+// route — the chevron shader needs the distance to march its arrows.
 function ribbonGeometry(pts, width, y) {
   const half = width / 2;
   const pos = [];
+  const uv = [];
   const idx = [];
+  let d = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1];
     let dx = b.x - a.x, dz = b.z - a.z;
@@ -33,10 +37,13 @@ function ribbonGeometry(pts, width, y) {
       b.x + nx, y, b.z + nz,
       b.x - nx, y, b.z - nz
     );
+    uv.push(0, d, 1, d, 0, d + len, 1, d + len);
     idx.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+    d += len;
   }
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geom.setIndex(idx);
   geom.computeVertexNormals();
   return geom;
@@ -47,13 +54,50 @@ export function createNavMarkers(scene) {
   group.name = 'nav';
   scene.add(group);
 
-  // --- Route ribbon ---
-  const routeMat = new THREE.MeshBasicMaterial({
-    color: ROUTE_COLOR,
+  // --- Route ribbon: modern GPS line — a soft-edged translucent band with
+  // bright chevrons marching toward the drop. The chevron tip leads at the
+  // centerline (the |u| offset), so the arrows visibly point the way.
+  const routeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      base: { value: new THREE.Color(ROUTE_COLOR) },
+      hot: { value: new THREE.Color(0xffe9a8) },
+    },
     transparent: true,
-    opacity: 0.85,
-    side: THREE.DoubleSide,
     depthWrite: false,
+    side: THREE.DoubleSide,
+    // The renderer runs a logarithmic depth buffer; raw ShaderMaterials must
+    // opt in via the logdepthbuf chunks or every fragment loses the depth
+    // test against the built-in materials (learned the hard way).
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        #include <logdepthbuf_vertex>
+      }
+    `,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform float time;
+      uniform vec3 base;
+      uniform vec3 hot;
+      varying vec2 vUv;
+      void main() {
+        #include <logdepthbuf_fragment>
+        float cx = abs(vUv.x * 2.0 - 1.0);              // 0 center → 1 edge
+        float band = 1.0 - smoothstep(0.7, 1.0, cx);    // soft-edged core
+        // Chevrons every 7m, scrolling toward the destination at 7 m/s.
+        float p = fract((vUv.y - cx * 1.2 - time * 7.0) / 7.0);
+        float ch = smoothstep(0.02, 0.06, p) * (1.0 - smoothstep(0.16, 0.24, p));
+        float alpha = band * (0.5 + ch * 0.5); // solid enough to trust at speed
+        vec3 col = mix(base, hot, ch);
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
   });
   let routeMesh = null;
   let shownVersion = -1;
@@ -126,7 +170,7 @@ export function createNavMarkers(scene) {
     }
     if (routeMesh) {
       routeMesh.visible = riding;
-      routeMat.opacity = 0.65 + 0.25 * Math.sin(t * 4); // slow breathing pulse
+      routeMat.uniforms.time.value = t; // the chevrons march on this
     }
 
     // Beacon at the drop point, ring pulsing outward.

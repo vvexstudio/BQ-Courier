@@ -275,7 +275,9 @@ function animate() {
       sfx.play('bell');
       traffic?.ring(s);
     }
-    if (input.pressed('KeyQ') && s.wipeout === 0) {
+    // Space or Q lobs the bagel (Space freed up when S took over braking).
+    const shoot = input.pressed('Space');
+    if ((input.pressed('KeyQ') || shoot) && s.wipeout === 0) {
       sfx.play('toss');
       traffic?.throwBagel(s);
     }

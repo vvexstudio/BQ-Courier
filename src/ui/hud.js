@@ -96,19 +96,33 @@ export function createHUD() {
 
     ctx.drawImage(base, 0, 0);
 
-    // Active route: dotted white, like a paper map.
+    // Active route: a bold amber overlay with white dashes marching toward
+    // the drop — unambiguously "the path to the goal", not just decoration.
     if (delivery.phase === 'riding' && delivery.route) {
-      ctx.strokeStyle = COLORS.route;
-      ctx.lineWidth = 3;
       ctx.lineCap = 'round';
-      ctx.setLineDash([2, 9]);
-      ctx.beginPath();
-      delivery.route.forEach((p, i) => {
-        const [mx, mz] = toMap(p.x, p.z);
-        i === 0 ? ctx.moveTo(mx, mz) : ctx.lineTo(mx, mz);
-      });
+      ctx.lineJoin = 'round';
+      const tracePath = () => {
+        ctx.beginPath();
+        delivery.route.forEach((p, i) => {
+          const [mx, mz] = toMap(p.x, p.z);
+          i === 0 ? ctx.moveTo(mx, mz) : ctx.lineTo(mx, mz);
+        });
+      };
+      // Amber body…
+      ctx.strokeStyle = 'rgba(255, 176, 46, 0.95)';
+      ctx.lineWidth = 4.5;
+      tracePath();
+      ctx.stroke();
+      // …with a marching white dash on top (the path is drawn start→goal,
+      // so a shrinking dash offset flows toward the destination).
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([5, 9]);
+      ctx.lineDashOffset = -(performance.now() / 45) % 14;
+      tracePath();
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
     }
 
     // Drop point: pulsing red dot.

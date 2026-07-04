@@ -313,6 +313,21 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (branch: art/snes-16bit, cont.)** — **Space shoots; modern
+  nav line; minimap route overlay.** Space was demoted from brake (S already
+  brakes-then-reverses through the throttle path) and promoted to the bagel
+  trigger alongside Q. The route ribbon was rebuilt as a modern GPS line:
+  slimmer soft-edged amber band with bright chevrons marching toward the
+  drop at 7 m/s (ribbon geometry now carries distance-along-route UVs; the
+  chevron tip leads at the centerline so the arrows point the way).
+  **Gotcha for the decision log**: the renderer's logarithmic depth buffer
+  means raw ShaderMaterials must include the `logdepthbuf` chunks or every
+  fragment silently loses the depth test — the ribbon rendered nothing until
+  those went in. The minimap route is now an unmissable overlay: bold amber
+  body with an animated white dash marching toward the goal. Debugging
+  footnote: Vite HMR re-runs of main.js stack extra canvases under #app;
+  only a hard reload shows current code — cost twenty minutes of staring at
+  a stale frame.
 - **2026-07-04 (branch: art/snes-16bit)** — **The SNES art pass.** Less
   Atari, more Super Nintendo, on a feature branch:
   - **TV frame gone**: `retroFX.js` rewritten — no fisheye, no bezel, the
