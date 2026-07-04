@@ -44,6 +44,35 @@ export const BIKE = {
   hitSpeedKeep: 0.35,  // fraction of speed retained on a wall scrape
 };
 
+// Lane assist (Phase 3). When the player isn't steering, the bike gently tracks
+// the nearest road's centerline instead of ruler-straight into a facade —
+// streets curve, W-held-down shouldn't end at a wall. It's an aim-ahead
+// correction, deliberately weaker than player input so it never fights an
+// intentional turn, and it disengages entirely off-road / at big angles.
+export const LANE_ASSIST = {
+  maxDist: 12,    // m off the centerline before assist lets go
+  lookAhead: 6,   // m ahead along the road we aim for (plus a speed term)
+  lookAheadSpeed: 0.35, // extra look-ahead per m/s — smoother at speed
+  rate: 1.4,      // rad/s max corrective yaw (player turnRate is 2.6)
+  maxAngle: 1.0,  // rad — beyond this we assume the player *means* to leave
+};
+
+// The delivery loop (Phase 3). Timing is arcade-generous: the timer is derived
+// from the actual route length at a "casual rider" pace, so a clean run always
+// beats the clock and the bonus rewards hustle.
+export const DELIVERY = {
+  minRouteDist: 140,   // m — don't hand out orders you can see from the spawn
+  maxRouteDist: 650,   // m — nor cross-map epics (bbox is only ~600m wide)
+  dropRadius: 9,       // m from the (road-snapped) drop point that counts
+  baseTime: 15,        // s of slack on every order
+  paceSpeed: 6.5,      // m/s assumed pace: timeLimit = base + dist / pace
+  baseScore: 100,      // points for any completed delivery
+  timeBonusRate: 8,    // points per second left on the clock
+  streakBonus: 25,     // extra points per consecutive on-time delivery
+  rerouteDist: 26,     // m off-route before the GPS recalculates
+  nextOrderDelay: 2.5, // s of "Delivered!" celebration before the next order
+};
+
 // 2007-Need-for-Speed-ish dusk palette. Moody blue hour, but legible — not
 // "lights off". Streets read as wet asphalt, buildings catch warm sun + cool rim.
 export const PALETTE = {

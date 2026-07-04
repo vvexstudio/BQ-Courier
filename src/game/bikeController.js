@@ -12,9 +12,15 @@
 // the bike from "crabbing" (body pointing one way while sliding another).
 
 import * as THREE from 'three';
-import { BIKE } from '../config.js';
+import { BIKE, LANE_ASSIST } from '../config.js';
 
-export function createBikeController(bike, collider, spawn = {}) {
+function wrapAngle(a) {
+  while (a > Math.PI) a -= 2 * Math.PI;
+  while (a < -Math.PI) a += 2 * Math.PI;
+  return a;
+}
+
+export function createBikeController(bike, collider, spawn = {}, roadGraph = null) {
   const state = {
     x: spawn.x ?? 0,
     z: spawn.z ?? 0,
@@ -63,7 +69,35 @@ export function createBikeController(bike, collider, spawn = {}) {
     // With forward = (-sin h, -cos h), turning right (toward +X) means *lowering*
     // heading, so steer=+1 (D / right) gets a negative yaw rate.
     const dir = Math.sign(state.speed) || 1;
-    const yawRate = -steer * BIKE.turnRate * authority * dir;
+    let yawRate = -steer * BIKE.turnRate * authority * dir;
+
+    // --- Lane assist: hands-off, the bike follows the street, not a ruler ---
+    // Roads curve; without this, holding W ends at the nearest facade. When the
+    // player isn't steering (and is rolling forward on/near a road), aim at a
+    // point a few meters ahead *along the road* and yaw gently toward it.
+    if (roadGraph && steer === 0 && state.speed > 1.5) {
+      const near = roadGraph.nearestOnRoad(state.x, state.z);
+      if (near && near.dist < LANE_ASSIST.maxDist) {
+        const f = forwardVec();
+        // Road direction, disambiguated to whichever way we're facing.
+        const sign = (f.x * near.dx + f.z * near.dz) >= 0 ? 1 : -1;
+        const rdx = near.dx * sign;
+        const rdz = near.dz * sign;
+        // Aim point: ahead along the road from our snapped position.
+        const ahead = LANE_ASSIST.lookAhead + speedAbs * LANE_ASSIST.lookAheadSpeed;
+        const aimX = near.x + rdx * ahead;
+        const aimZ = near.z + rdz * ahead;
+        // Desired heading toward the aim point (inverse of forward=(-sin,-cos)).
+        const wantH = Math.atan2(-(aimX - state.x), -(aimZ - state.z));
+        const err = wrapAngle(wantH - state.heading);
+        // Big error means the player deliberately left the road — don't yank.
+        if (Math.abs(err) < LANE_ASSIST.maxAngle) {
+          const maxStep = LANE_ASSIST.rate * dt;
+          yawRate += THREE.MathUtils.clamp(err, -maxStep, maxStep) / dt;
+        }
+      }
+    }
+
     state.heading += yawRate * dt;
 
     // --- Integrate position with wall collision ---

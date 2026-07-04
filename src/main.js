@@ -1,9 +1,11 @@
 // BQ Courier — entry point.
 //
-// Phase 1 built the world (real South Williamsburg from OSM). Phase 2 puts a
-// rideable bike in it: arcade physics, WASD steering, a third-person chase cam,
-// and collision against buildings. This is where it stops being a tech demo.
-// An OrbitControls free-cam stays one keypress away ('O') for debugging.
+// Phase 1 built the world (real South Williamsburg from OSM). Phase 2 made it
+// rideable (arcade bike, chase cam, collision). Phase 3 — this — makes it a
+// game: orders spawn at real tagged addresses, an A* route is drawn on the
+// street and on a minimap, a nav arrow leads the way, and arriving in the drop
+// zone scores against a route-length timer. Lane assist keeps a hands-off bike
+// following the street instead of coasting into a facade.
 // See sprintboard.md for the roadmap and what comes next.
 
 import * as THREE from 'three';
@@ -15,22 +17,23 @@ import { createInput } from './game/input.js';
 import { createCollider } from './game/collision.js';
 import { createBikeController } from './game/bikeController.js';
 import { createChaseCam } from './render/chaseCam.js';
+import { createDelivery } from './game/delivery.js';
+import { createNavMarkers } from './render/markers.js';
+import { createHUD } from './ui/hud.js';
 import { WORLD } from './config.js';
 
-const els = {
-  app: document.getElementById('app'),
-  stats: document.getElementById('stats'),
-  status: document.getElementById('status'),
-};
+const app = document.getElementById('app');
+const hud = createHUD();
 
 function setStatus(msg) {
-  els.status.textContent = msg;
+  hud.setStatus(msg);
   console.log('[bq]', msg);
 }
 
-const { renderer, scene, camera } = createScene(els.app);
+const { renderer, scene, camera } = createScene(app);
 const input = createInput();
 const chaseCam = createChaseCam(camera);
+const nav = createNavMarkers(scene);
 
 // Debug free-cam — disabled until toggled on with 'O'.
 const orbit = new OrbitControls(camera, renderer.domElement);
@@ -40,7 +43,8 @@ orbit.maxPolarAngle = Math.PI * 0.49;
 orbit.enabled = false;
 let orbitMode = false;
 
-let bikeCtl = null; // set once the world is built
+let bikeCtl = null;  // set once the world is built
+let delivery = null;
 
 // FPS readout
 let frames = 0;
@@ -49,25 +53,43 @@ let fps = 0;
 
 async function init() {
   try {
-    const { world, stats, footprints, spawn } = await buildWorld(WORLD.bbox, {
-      onStatus: setStatus,
-    });
+    const { world, stats, footprints, spawn, roadGraph, addresses, roadLines } =
+      await buildWorld(WORLD.bbox, { onStatus: setStatus });
     scene.add(world);
 
     const bike = createBike();
     scene.add(bike.group);
 
     const collider = createCollider(footprints);
-    bikeCtl = createBikeController(bike, collider, spawn);
+    bikeCtl = createBikeController(bike, collider, spawn, roadGraph);
+
+    hud.initMap(roadLines);
+
+    delivery = createDelivery({
+      addresses,
+      roadGraph,
+      onEvent(type, data) {
+        if (type === 'order') {
+          hud.toast('NEW ORDER', `${data.cargo} → ${data.label}`);
+        } else if (type === 'delivered') {
+          hud.toast(
+            `DELIVERED! +${data.points}`,
+            data.streak > 1 ? `×${data.streak} streak · +${data.bonus} time bonus` : `+${data.bonus} time bonus`
+          );
+        } else if (type === 'expired') {
+          hud.toast('ORDER EXPIRED', 'streak lost — new order incoming', true);
+        }
+      },
+    });
 
     // Place the chase cam behind the bike on the very first frame.
     chaseCam.update(0.016, bikeCtl.state);
 
     // Dev handle for inspecting the scene graph from the console.
-    window.__bq = { scene, camera, world, bike, bikeCtl, collider, stats };
+    window.__bq = { scene, camera, world, bike, bikeCtl, collider, delivery, roadGraph, stats };
     setStatus(
       `${WORLD.name} — ${stats.buildings} buildings, ${stats.roads} roads, ` +
-      `${stats.bikeLanes} bike lanes. WASD to ride, Space to brake, O for free-cam.`
+      `${stats.bikeLanes} bike lanes, ${addresses.length} addresses.`
     );
   } catch (err) {
     setStatus(`Failed to build world: ${err.message}`);
@@ -99,17 +121,24 @@ function animate() {
     } else {
       chaseCam.update(dt, s);
     }
+
+    if (delivery) {
+      const d = delivery.update(dt, s);
+      nav.update(dt, d, s, delivery.aimPoint());
+    }
   }
 
   renderer.render(scene, camera);
 
   frames++;
-  if (now - lastFpsT >= 500) {
+  if (now - lastFpsT >= 250) {
     fps = Math.round((frames * 1000) / (now - lastFpsT));
     frames = 0;
     lastFpsT = now;
-    const kmh = bikeCtl ? Math.round(Math.abs(bikeCtl.state.speed) * 3.6) : 0;
-    els.stats.textContent = `${fps} fps · ${kmh} km/h`;
+  }
+  if (bikeCtl && delivery) {
+    const kmh = Math.round(Math.abs(bikeCtl.state.speed) * 3.6);
+    hud.update(delivery.state, bikeCtl.state, kmh, fps);
   }
 }
 

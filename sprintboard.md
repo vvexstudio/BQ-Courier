@@ -47,9 +47,23 @@ completeness is explicitly *not* the bar.
 > real WB address, an on-screen arrow points the way, arriving in the drop zone
 > fires "Delivered!", and a score + timer track the run.
 
-- **Status:** not started. Phases 1 (world) and 2 (bike + controls) are ✅ done.
-- **Next up:** order spawn at a target address, waypoint marker/arrow, drop-zone
-  arrival detection, score + timer. See Phase 3 below.
+- **Status:** implemented; in-browser playtest done (scripted rider, 2026-07-03)
+  — found and fixed a nav bug (aim point ignored progress along the current
+  route segment, so the chevron pointed backward on long blocks). Full loop
+  verified: 2 consecutive deliveries with correct scoring/streak, plus the
+  expiry path (streak lost, run continues). A human feel-check (fps, handling)
+  on real hardware is still worth a ride. Orders spawn at real
+  tagged addresses (1437 in the bbox), an A* route over a rideable-roads graph
+  renders as a glowing ribbon in-world + on a minimap, a nav chevron points down
+  the route, drop-zone arrival scores against a route-length timer with streaks,
+  and the HUD is a full "delivery app" layer (order card, timer bar, score,
+  speedo, minimap, toasts). Also shipped **lane assist**: hands-off, the bike
+  follows the street's curve instead of coasting straight into a facade — the
+  navigation complaint from Sprint 02 playtesting.
+- **Verified:** Node smoke test against live Overpass — graph builds (1376
+  nodes / 1516 segments), origin snaps to a road at 4.5 m, 10/10 routes to
+  random addresses succeed (221–707 m). `npm run build` clean.
+- **Next up:** human feel-check on real hardware, then Phase 4 (the obstacles).
 
 > **Sprint 02 — The bike + controls (Phase 2): ✅ DONE.** A courier bike now
 > rides the verified world. Placeholder bike + rider, arcade physics
@@ -106,12 +120,20 @@ Phases are sequential but the deferred list is designed-for, not built.
 - [x] Debug free-cam toggle ('O') retained from Phase 1's OrbitControls
 - [x] **Verify live**: rides to ~72 km/h, leans into turns, stops at walls, 148fps.
 
-### Phase 3 — The delivery loop
+### Phase 3 — The delivery loop ✅ (implemented, pending live playtest)
 
-- [ ] Order spawns with a target real WB address
-- [ ] Waypoint marker / on-screen arrow to the destination
-- [ ] Drop zone arrival detection → "Delivered!"
-- [ ] Score + timer
+- [x] Order spawns with a target real WB address (`addr:*` tags, `game/delivery.js`)
+- [x] Waypoint marker / on-screen arrow to the destination (route ribbon +
+      beacon + nav chevron, `render/markers.js`)
+- [x] Drop zone arrival detection → "Delivered!" (drop radius on the
+      road-snapped route end, toast + celebration pause)
+- [x] Score + timer (route-length-derived countdown, time bonus, streak bonus)
+- [x] *(bonus)* Rideable-roads graph + A* routing + GPS-style reroute
+      (`world/roadGraph.js`)
+- [x] *(bonus)* Lane assist — hands-off bike follows the street, not a ruler
+      (`game/bikeController.js`, fixes "rides straight into a building")
+- [x] *(bonus)* Dense HUD: order card, timer bar, score panel, speedo, live
+      minimap, event toasts (`ui/hud.js`, `index.html`)
 
 ### Phase 4 — The Brooklyn obstacles (the vibe)
 
@@ -186,6 +208,28 @@ Short ADR-style records of choices that aren't obvious from the code.
   center (which can land inside a building), the builder picks the road-network
   vertex closest to the origin and faces the bike along that segment. Robust to
   bbox retuning and guarantees we start on asphalt pointing down a street.
+- **2026-07-02 — Routing graph: weld on raw coordinates, rideable ways only.**
+  Overpass `out geom` repeats the *exact* lat/lon of a shared OSM node in every
+  way that touches it, so graph nodes are keyed by the raw `lat,lon` string —
+  intersections connect with no welding tolerance or node-id pass. Footways,
+  steps, and motorway/trunk (the BQE) are excluded from the graph, spawn, and
+  minimap: routes must be legally/physically rideable, and footway spawns were
+  a source of "spawn facing a wall".
+- **2026-07-02 — Lane assist is a steering nudge, not a rail.** The fix for
+  "holding W rides into a building" is a per-frame corrective yaw toward a
+  look-ahead point on the nearest road (max 1.4 rad/s vs. the player's 2.6),
+  active only when steer input is zero, speed > 1.5 m/s, within 12 m of a road,
+  and under a 1-rad heading error. Any player steering wins instantly and big
+  errors mean "leaving on purpose" — the game must never wrestle the player.
+- **2026-07-02 — Delivery timer derives from the actual route.** `baseTime +
+  routeLength / paceSpeed` instead of a flat clock, so far orders are fair and
+  near ones stay tense. Missing the clock costs the streak, never ends the run
+  — arcade forgiveness over roguelike punishment.
+- **2026-07-02 — Destinations are real tagged addresses.** Orders target
+  buildings with `addr:housenumber` + `addr:street` (1437 in the bbox — WB is
+  well tagged), so the order card reads "184 Broadway", not "waypoint 7". The
+  drop point is the route's road-snapped end, so arrival never requires
+  entering the building footprint.
 - **2026-06-19 — Flat-layer rendering: DoubleSide ribbons + logarithmic depth.**
   Road/bike ribbons are built as per-segment quads wound facing down, so they
   must render `DoubleSide` to be visible from above. Ground/road/bike are nearly
@@ -211,6 +255,38 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-03** — **Playtest + fix: nav aim point anchored to segment start.**
+  In-browser playtest of Phase 3 (scripted rider driving the real
+  `bikeCtl.update`/`delivery.update` loop). Found: `aimPoint()` in
+  `game/delivery.js` measured the look-ahead from the *start* of the current
+  route segment, ignoring the rider's progress along it (`trackProgress`
+  computed the projection `t` but discarded it) — on long welded segments
+  (100m+ blocks) the nav chevron aimed at a point *behind* the bike until the
+  next segment. Fixed by keeping `segT` in state and measuring the look-ahead
+  from the rider's projection. Verified post-fix: aim point sits 18 m ahead
+  while riding; two consecutive deliveries land with exact expected scores
+  (+420, then +444 with the ×2 streak bonus); order expiry correctly drops the
+  streak without ending the run; `npm run build` clean.
+- **2026-07-02** — **Phase 3 implemented: the delivery loop + navigation.**
+  New rideable-roads graph (`world/roadGraph.js`): nodes welded on shared OSM
+  coordinates, segment grid for nearest-road queries, A* routing between any
+  two world points. Orders (`game/delivery.js`) pick a real `addr:housenumber`
+  + `addr:street` building a 140–650 m route away, count down a timer derived
+  from route length, detect drop-radius arrival, and score with time + streak
+  bonuses; wandering off-route triggers a GPS-style reroute. Navigation renders
+  three ways (`render/markers.js`): pulsing amber route ribbon on the street, a
+  magenta beacon column + ground ring at the drop, and a chevron over the bike
+  aimed ~18 m *along the route* (so it turns at corners). HUD rebuilt as a
+  dense delivery-app layer (`ui/hud.js` + `index.html`): order card with cargo
+  + distance + timer bar, score/streak panel, big speedo, live minimap (roads,
+  route, drop, bike heading), and event toasts. **Lane assist** added to the
+  bike controller: when the player isn't steering, the bike yaws gently toward
+  a look-ahead point on the nearest road, so holding W follows the street's
+  curve instead of drifting into a facade (player input always overrides; it
+  disengages off-road). Spawn now restricted to rideable ways (footway spawns
+  could face a courtyard wall). Verified via Node smoke test against live
+  Overpass (1437 addresses, 10/10 routes OK, `scripts/smoke-nav.mjs`) + clean
+  `npm run build`; live in-browser playtest is next.
 - **2026-06-21** — **Fix bike "crabbing" / broken turning.** The controller moved
   the bike (and chase cam) along `forward = (sin h, -cos h)`, but Three.js
   `group.rotation.y = h` actually points the model along `(-sin h, -cos h)` — the
