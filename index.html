@@ -4,137 +4,135 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BQ Courier — Williamsburg</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: dark;
-        --ink: #e8ecff;
-        --dim: #8b93b8;
-        --panel: rgba(13, 16, 28, 0.72);
-        --panel-line: rgba(126, 140, 200, 0.25);
+        --ink: #ffffff;
+        --dim: rgba(255, 255, 255, 0.75);
         --accent: #ffb02e;   /* route amber */
         --hot: #ff4fa3;      /* beacon magenta */
         --good: #39ff9a;     /* bike-lane green */
         --bad: #ff5d5d;
       }
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d14; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #63c5f2; }
       #app { position: fixed; inset: 0; }
       canvas { display: block; }
 
+      /* Racing-game HUD: flat pixel text with a hard drop shadow, no panels. */
       .hud {
         position: fixed;
-        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-family: 'Press Start 2P', ui-monospace, Menlo, monospace;
         color: var(--ink);
+        text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
         pointer-events: none;
         user-select: none;
       }
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--panel-line);
-        border-radius: 10px;
-        backdrop-filter: blur(6px);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
-      }
+      .cap { font-size: 8px; letter-spacing: 0.18em; color: var(--dim); margin-top: 6px; }
 
-      /* ---- top-left: identity ---- */
-      #title { top: 14px; left: 16px; font-size: 12px; letter-spacing: 0.08em; padding: 8px 12px; }
-      #title b { color: var(--hot); font-size: 13px; }
-      #title span { color: var(--dim); }
+      /* ---- top-left: deliveries (the "checkpoint" block) ---- */
+      #deliveries { top: 22px; left: 24px; }
+      #deliveries .big { font-size: 26px; }
+      #deliveries .sub { font-size: 8px; color: var(--good); margin-top: 8px; }
 
-      /* ---- top-center: the order card ---- */
-      #order {
-        top: 14px; left: 50%; transform: translateX(-50%);
-        min-width: 300px; max-width: 420px;
-        padding: 10px 16px 12px;
-        text-align: center;
-      }
-      #order .kicker { font-size: 10px; letter-spacing: 0.22em; color: var(--accent); }
-      #order .addr { font-size: 17px; font-weight: 700; margin: 3px 0 1px; }
-      #order .cargo { font-size: 11px; color: var(--dim); }
-      #order .meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; }
-      #order .meta .dist { color: var(--accent); }
-      #order .meta .clock { font-weight: 700; }
-      #order .meta .clock.low { color: var(--bad); animation: blink 0.5s steps(2) infinite; }
-      #timerbar { height: 4px; border-radius: 2px; background: rgba(126, 140, 200, 0.25); margin-top: 6px; overflow: hidden; }
-      #timerfill { height: 100%; width: 100%; background: var(--good); border-radius: 2px; transition: width 0.2s linear; }
-      #timerfill.mid { background: var(--accent); }
-      #timerfill.low { background: var(--bad); }
+      /* ---- top-center: elapsed clock + order remaining ---- */
+      #clock { top: 18px; left: 50%; transform: translateX(-50%); text-align: center; }
+      #elapsed { font-size: 24px; }
+      #remaining { font-size: 16px; margin-top: 10px; }
+      #remaining.low { color: var(--bad); animation: blink 0.5s steps(2) infinite; }
+      #orderline { font-size: 8px; color: var(--accent); margin-top: 10px; letter-spacing: 0.08em; }
       @keyframes blink { 50% { opacity: 0.25; } }
 
-      /* ---- top-right: score ---- */
-      #scorepanel { top: 14px; right: 16px; padding: 8px 14px; text-align: right; font-size: 12px; }
-      #scorepanel .score { font-size: 22px; font-weight: 700; color: var(--accent); }
-      #scorepanel .row { color: var(--dim); margin-top: 2px; }
-      #scorepanel .row b { color: var(--ink); }
-      #scorepanel .streak { color: var(--good); }
+      /* ---- top-right: crashes + score ---- */
+      #crashpanel { top: 22px; right: 24px; text-align: right; }
+      #crashpanel .big { font-size: 26px; }
+      #scoreline { font-size: 8px; color: var(--accent); margin-top: 8px; }
 
-      /* ---- bottom-left: speedo + status ---- */
-      #speedo { bottom: 16px; left: 16px; padding: 10px 16px; text-align: left; }
-      #speedo .kmh { font-size: 30px; font-weight: 700; line-height: 1; }
-      #speedo .unit { font-size: 11px; color: var(--dim); letter-spacing: 0.12em; }
-      #speedo .fps { font-size: 10px; color: var(--dim); margin-top: 4px; }
-      #status {
-        bottom: 16px; left: 50%; transform: translateX(-50%);
-        font-size: 11px; color: var(--dim);
-        background: var(--panel); border: 1px solid var(--panel-line);
-        padding: 5px 12px; border-radius: 6px;
+      /* ---- bottom-left: speedo ---- */
+      #speedo { bottom: 20px; left: 24px; }
+      #speedo .big { font-size: 22px; }
+      #fps { font-size: 7px; color: var(--dim); margin-top: 6px; }
+
+      /* ---- bottom-center: status + help ---- */
+      #status { bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 7px; color: var(--dim); text-align: center; }
+
+      /* ---- bottom-right: round minimap ---- */
+      #maphud { bottom: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+      #minimap {
+        display: block; width: 200px; height: 200px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.65);
+        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
       }
-
-      /* ---- bottom-right: minimap + help ---- */
-      #maphud { bottom: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-      #minimap { display: block; width: 190px; height: 190px; border-radius: 10px; }
-      #mapframe { padding: 5px; }
-      #help { font-size: 10px; color: var(--dim); text-align: right; }
+      #help { font-size: 6px; color: var(--dim); text-align: right; }
 
       /* ---- center toast ---- */
       #toast {
         top: 34%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-        font-size: 34px; font-weight: 800; letter-spacing: 0.06em;
+        font-size: 24px; letter-spacing: 0.04em;
         color: var(--good);
-        text-shadow: 0 2px 18px rgba(57, 255, 154, 0.55), 0 2px 4px rgba(0,0,0,0.8);
+        text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.65);
         opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
         text-align: center;
       }
-      #toast .sub { font-size: 15px; font-weight: 600; color: var(--ink); margin-top: 6px; }
+      #toast .sub { font-size: 10px; color: var(--ink); margin-top: 12px; }
       #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-      #toast.bad { color: var(--bad); text-shadow: 0 2px 18px rgba(255, 93, 93, 0.55), 0 2px 4px rgba(0,0,0,0.8); }
+      #toast.bad { color: var(--bad); }
 
       .hidden { display: none !important; }
+
+      /* Long status line must never collide with the map/help. */
+      #status { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #orderline { max-width: 60vw; margin-left: auto; margin-right: auto; }
+
+      /* Narrow windows: shrink the top row so the three blocks never overlap. */
+      @media (max-width: 760px) {
+        #deliveries .big, #crashpanel .big { font-size: 16px; }
+        #elapsed { font-size: 14px; }
+        #remaining { font-size: 11px; }
+        #orderline, #deliveries .sub, #scoreline { font-size: 6px; }
+        .cap { font-size: 6px; }
+        #speedo .big { font-size: 14px; }
+        #minimap { width: 130px; height: 130px; }
+        #status { display: none; }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
 
-    <div id="title" class="hud panel">
-      <b>BQ COURIER</b> <span>· South Williamsburg · phase 3: the delivery loop</span>
+    <div id="deliveries" class="hud">
+      <div class="big" id="delivered">0</div>
+      <div class="cap">DELIVERED</div>
+      <div class="sub" id="streak">×0 STREAK</div>
     </div>
 
-    <div id="order" class="hud panel hidden">
-      <div class="kicker">DELIVER TO</div>
-      <div class="addr" id="order-addr">—</div>
-      <div class="cargo" id="order-cargo">—</div>
-      <div class="meta">
-        <span class="dist" id="order-dist">— m</span>
-        <span class="clock" id="order-clock">—</span>
-      </div>
-      <div id="timerbar"><div id="timerfill"></div></div>
+    <div id="clock" class="hud">
+      <div id="elapsed">00:00:00</div>
+      <div id="remaining">--:--</div>
+      <div class="cap">REMAINING</div>
+      <div id="orderline" class="hidden">—</div>
     </div>
 
-    <div id="scorepanel" class="hud panel">
-      <div class="score" id="score">0</div>
-      <div class="row"><b id="delivered">0</b> delivered · <span class="streak" id="streak">×0 streak</span></div>
+    <div id="crashpanel" class="hud">
+      <div class="big" id="crashes">0</div>
+      <div class="cap">CRASHES</div>
+      <div id="scoreline">0 PTS</div>
     </div>
 
-    <div id="speedo" class="hud panel">
-      <div class="kmh" id="kmh">0</div>
-      <div class="unit">KM/H</div>
-      <div class="fps" id="fps">— fps</div>
+    <div id="speedo" class="hud">
+      <div class="big"><span id="kmh">0</span></div>
+      <div class="cap">KM/H</div>
+      <div id="fps">— fps</div>
     </div>
 
     <div id="status" class="hud">loading…</div>
 
     <div id="maphud" class="hud">
-      <div id="mapframe" class="panel"><canvas id="minimap" width="380" height="380"></canvas></div>
-      <div id="help">W/S throttle · A/D steer · Space brake · O free-cam</div>
+      <canvas id="minimap" width="400" height="400"></canvas>
+      <div id="help">W/S THROTTLE · A/D STEER · SPACE BRAKE · O FREE-CAM</div>
     </div>
 
     <div id="toast" class="hud"><div id="toast-main"></div><div class="sub" id="toast-sub"></div></div>

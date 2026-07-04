@@ -25,6 +25,12 @@ export function buildBuildings(buildingWays) {
   // World-space XZ footprint rings, kept for the collider (Phase 2).
   const footprints = [];
 
+  // 16-bit facades: each building gets one flat color from the Williamsburg
+  // variant palette, with a touch of per-building lightness jitter so two
+  // brick-red neighbors don't read as one blob.
+  const variants = PALETTE.buildingVariants.map((c) => new THREE.Color(c));
+  const tmp = new THREE.Color();
+
   for (const way of buildingWays) {
     const ring = way.geometry;
     if (!ring || ring.length < 4) continue; // need a closed-ish ring
@@ -53,6 +59,17 @@ export function buildBuildings(buildingWays) {
       steps: 1,
     });
     geom.rotateX(-Math.PI / 2); // XY plane + Z extrude -> XZ footprint rising in +Y
+
+    tmp.copy(variants[Math.floor(Math.random() * variants.length)]);
+    tmp.offsetHSL(0, 0, (Math.random() - 0.5) * 0.08);
+    const count = geom.attributes.position.count;
+    const colors = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      colors[i * 3] = tmp.r;
+      colors[i * 3 + 1] = tmp.g;
+      colors[i * 3 + 2] = tmp.b;
+    }
+    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geoms.push(geom);
   }
 
@@ -64,8 +81,22 @@ export function buildBuildings(buildingWays) {
   const merged = mergeGeometries(geoms, false);
   merged.computeVertexNormals();
 
+  // Roofs a shade darker than the walls — separates the skyline planes the way
+  // 16-bit tilesets do. Extrude output is non-indexed, so vertex normals are
+  // face normals: normal.y ≈ 1 means "this vertex is on a roof".
+  {
+    const n = merged.attributes.normal;
+    const c = merged.attributes.color;
+    for (let i = 0; i < n.count; i++) {
+      if (n.getY(i) > 0.9) {
+        c.setXYZ(i, c.getX(i) * 0.72, c.getY(i) * 0.72, c.getZ(i) * 0.72);
+      }
+    }
+  }
+
   const material = new THREE.MeshStandardMaterial({
-    color: PALETTE.building,
+    color: 0xffffff,
+    vertexColors: true,
     roughness: 0.88,
     metalness: 0.0,
     flatShading: true,

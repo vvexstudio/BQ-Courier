@@ -27,8 +27,10 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     heading: spawn.heading ?? 0,
     speed: 0, // signed: + forward, - reverse
     lean: 0,
+    crashes: 0, // hard wall hits (HUD counter)
   };
   let lastSteer = 0; // most recent steer input, for the cosmetic front-wheel yaw
+  let crashCooldown = 0; // one scrape-y corner shouldn't count as five crashes
 
   function forwardVec() {
     // Must match the model's world forward under group.rotation.y = heading.
@@ -107,7 +109,15 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     const r = collider.resolve(state.x, state.z, nx, nz);
     state.x = r.x;
     state.z = r.z;
-    if (r.hit) state.speed *= BIKE.hitSpeedKeep; // scrape: bleed momentum
+    crashCooldown = Math.max(0, crashCooldown - dt);
+    if (r.hit) {
+      // A fast hit counts as a crash (debounced); slow contact is just a scrape.
+      if (Math.abs(state.speed) > 5 && crashCooldown === 0) {
+        state.crashes++;
+        crashCooldown = 1.2;
+      }
+      state.speed *= BIKE.hitSpeedKeep; // bleed momentum either way
+    }
 
     // --- Visual lean: bike tips into the turn, target ~ turn rate, smoothed ---
     // Lean tracks the sign of the yaw so the bike always tips toward the inside
@@ -131,6 +141,7 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     const spin = (state.speed / bike.wheelRadius) * dt;
     bike.wheels.front.rotation.x += spin;
     bike.wheels.rear.rotation.x += spin;
+    bike.pedal?.(spin);
     bike.steer.rotation.y = -lastSteer * 0.4;
   }
 

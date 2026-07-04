@@ -98,7 +98,8 @@ export function buildRoads(roadWays) {
       new THREE.MeshStandardMaterial({
         color: PALETTE.bikeLane,
         emissive: PALETTE.bikeLane,
-        emissiveIntensity: 1.4,
+        emissiveIntensity: 0.3, // daylight: keep it loud but not blown out
+
         roughness: 0.6,
         side: THREE.DoubleSide,
       })

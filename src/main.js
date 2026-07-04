@@ -19,6 +19,7 @@ import { createBikeController } from './game/bikeController.js';
 import { createChaseCam } from './render/chaseCam.js';
 import { createDelivery } from './game/delivery.js';
 import { createNavMarkers } from './render/markers.js';
+import { createRetroFX } from './render/retroFX.js';
 import { createHUD } from './ui/hud.js';
 import { WORLD } from './config.js';
 
@@ -31,6 +32,7 @@ function setStatus(msg) {
 }
 
 const { renderer, scene, camera } = createScene(app);
+const fx = createRetroFX(renderer); // 16-bit pixelation + fisheye pass
 const input = createInput();
 const chaseCam = createChaseCam(camera);
 const nav = createNavMarkers(scene);
@@ -45,6 +47,7 @@ let orbitMode = false;
 
 let bikeCtl = null;  // set once the world is built
 let delivery = null;
+let runTime = 0;     // elapsed ride time for the big HUD clock
 
 // FPS readout
 let frames = 0;
@@ -114,6 +117,7 @@ function animate() {
   }
 
   if (bikeCtl) {
+    runTime += dt;
     const s = bikeCtl.update(dt, input);
     if (orbitMode) {
       orbit.target.set(s.x, 1, s.z);
@@ -128,7 +132,7 @@ function animate() {
     }
   }
 
-  renderer.render(scene, camera);
+  fx.render(scene, camera);
 
   frames++;
   if (now - lastFpsT >= 250) {
@@ -138,7 +142,7 @@ function animate() {
   }
   if (bikeCtl && delivery) {
     const kmh = Math.round(Math.abs(bikeCtl.state.speed) * 3.6);
-    hud.update(delivery.state, bikeCtl.state, kmh, fps);
+    hud.update(delivery.state, bikeCtl.state, kmh, fps, runTime);
   }
 }
 

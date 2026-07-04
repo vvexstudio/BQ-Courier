@@ -3,6 +3,7 @@
 // plus some stats for the HUD.
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchOSM, partition } from './overpass.js';
 import { setOrigin, bboxCenter } from './geo.js';
 import { buildBuildings } from './buildings.js';
@@ -80,6 +81,94 @@ function collectRoadLines(roads) {
   return lines;
 }
 
+// Scatter simple low-poly trees (cylinder trunk + icosahedron canopy) across
+// the map — the 16-bit environment dressing. Positions are rejection-sampled:
+// not on a road (roadGraph distance) and not inside any building footprint.
+function buildTrees(footprints, roadGraph, count = 140) {
+  // Cached footprint bboxes make the point-in-polygon sweep cheap.
+  const boxes = footprints.map((fp) => {
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+    for (const p of fp) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+    return { fp, minX, minZ, maxX, maxZ };
+  });
+  const inBuilding = (x, z) => {
+    for (const b of boxes) {
+      if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+      let inside = false;
+      const fp = b.fp;
+      for (let i = 0, j = fp.length - 1; i < fp.length; j = i++) {
+        if (
+          fp[i].z > z !== fp[j].z > z &&
+          x < ((fp[j].x - fp[i].x) * (z - fp[i].z)) / (fp[j].z - fp[i].z) + fp[i].x
+        ) inside = !inside;
+      }
+      if (inside) return true;
+    }
+    return false;
+  };
+
+  const trunkGeoms = [];
+  const leafGeoms = [];
+  const leafColors = PALETTE.treeLeaves.map((c) => new THREE.Color(c));
+  const tmp = new THREE.Color();
+
+  let placed = 0;
+  for (let tries = 0; tries < count * 25 && placed < count; tries++) {
+    const x = (Math.random() - 0.5) * 560;
+    const z = (Math.random() - 0.5) * 560;
+    const near = roadGraph.nearestOnRoad(x, z);
+    if (near && near.dist < 8) continue; // keep the streets clear
+    if (inBuilding(x, z)) continue;
+
+    const s = 0.8 + Math.random() * 0.7;
+    const trunk = new THREE.CylinderGeometry(0.22 * s, 0.32 * s, 2.6 * s, 5);
+    trunk.translate(x, 1.3 * s, z);
+    trunkGeoms.push(trunk);
+
+    const leaf = new THREE.IcosahedronGeometry(2.1 * s, 0);
+    leaf.translate(x, (2.6 + 1.5) * s, z);
+    tmp.copy(leafColors[Math.floor(Math.random() * leafColors.length)]);
+    tmp.offsetHSL(0, 0, (Math.random() - 0.5) * 0.06);
+    const n = leaf.attributes.position.count;
+    const colors = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      colors[i * 3] = tmp.r;
+      colors[i * 3 + 1] = tmp.g;
+      colors[i * 3 + 2] = tmp.b;
+    }
+    leaf.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    leafGeoms.push(leaf);
+    placed++;
+  }
+
+  const group = new THREE.Group();
+  group.name = 'trees';
+  if (trunkGeoms.length) {
+    const trunks = new THREE.Mesh(
+      mergeGeometries(trunkGeoms, false),
+      new THREE.MeshStandardMaterial({ color: PALETTE.treeTrunk, roughness: 0.95 })
+    );
+    trunks.castShadow = true;
+    group.add(trunks);
+  }
+  if (leafGeoms.length) {
+    const leaves = new THREE.Mesh(
+      mergeGeometries(leafGeoms, false),
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff, vertexColors: true, roughness: 0.9, flatShading: true,
+      })
+    );
+    leaves.castShadow = true;
+    group.add(leaves);
+  }
+  return group;
+}
+
 function buildGround() {
   const geom = new THREE.PlaneGeometry(4000, 4000);
   geom.rotateX(-Math.PI / 2);
@@ -111,11 +200,14 @@ export async function buildWorld(bbox, { onStatus } = {}) {
   world.add(roadGroup);
   world.add(buildingGroup);
 
+  const roadGraph = buildRoadGraph(roads);
+  world.add(buildTrees(buildingGroup.userData.footprints ?? [], roadGraph));
+
   return {
     world,
     footprints: buildingGroup.userData.footprints ?? [],
     spawn: pickSpawn(roads),
-    roadGraph: buildRoadGraph(roads),
+    roadGraph,
     addresses: collectAddresses(buildings),
     roadLines: collectRoadLines(roads),
     stats: {

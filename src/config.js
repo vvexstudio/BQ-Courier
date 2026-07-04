@@ -73,17 +73,33 @@ export const DELIVERY = {
   nextOrderDelay: 2.5, // s of "Delivered!" celebration before the next order
 };
 
-// 2007-Need-for-Speed-ish dusk palette. Moody blue hour, but legible — not
-// "lights off". Streets read as wet asphalt, buildings catch warm sun + cool rim.
+// 16-bit indie daytime palette (art pivot 2026-07-03, replacing the NFS dusk).
+// Saturated SNES-cartridge colors: bright sky, grassy block interiors, warm
+// brick-and-pastel facades. Flat and cheerful, not filmic.
 export const PALETTE = {
-  sky: 0x1b2138,
-  fog: 0x1b2138,
-  ground: 0x0e1018, // dark, so the lit asphalt clearly stands out against it
-  building: 0x44506b,
+  sky: 0x63c5f2,
+  fog: 0xa8dcf5,
+  ground: 0x74b04e, // grassy block interiors — reads "cheerful map", not asphalt void
+  building: 0xc4705a, // fallback; real facades come from buildingVariants
   buildingTop: 0x556280,
-  road: 0x5a6178, // wet-asphalt grey — must read as a street, not a void
+  road: 0x9096a6, // light warm asphalt — clearly a street against the grass
   roadEdge: 0x6b7390, // (unused yet)
-  bikeLane: 0x39ff9a, // the gag depends on these being unmissable
-  sun: 0xffd9a0,
-  rim: 0x6f8dff,
+  bikeLane: 0x2fd97a, // the gag depends on these being unmissable
+  sun: 0xfff2cf,
+  rim: 0xcfe8ff,
+  // Williamsburg facades: brick reds, terracotta, tan, cream, pastels.
+  buildingVariants: [
+    0xb9554a, 0xd98e5a, 0xd9c08a, 0xe6dcb8,
+    0x9ec27a, 0x8fb0d9, 0xa07456, 0xd9a1a1,
+  ],
+  treeTrunk: 0x8a5a3b,
+  treeLeaves: [0x4e9e4a, 0x62b556, 0x3f8f52],
+};
+
+// Retro render pass: draw the scene small, upscale nearest-neighbor (the 16-bit
+// pixel look), and bend it slightly in the upscale shader (subtle fisheye).
+export const FX = {
+  pixelScale: 3,  // render at 1/pixelScale of the canvas — bigger = chunkier
+  fisheye: 0.45,  // barrel distortion strength; 0 disables
+  fov: 70,        // a touch wide, sells the lens
 };

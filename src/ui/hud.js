@@ -1,35 +1,36 @@
-// DOM HUD — the dense "delivery app" layer over the 3D view.
+// DOM HUD — racing-game layout in the 16-bit skin.
 //
-// Owns every element declared in index.html: the order card (address, cargo,
-// distance, countdown + timer bar), the score panel, the speedo, center
-// toasts, and a live minimap. The minimap pre-renders the street network once
-// to an offscreen canvas (it never changes), then each frame blits it and
-// draws the dynamic bits: route, drop beacon, and the bike as a heading
-// triangle. All coordinates fit the whole bbox — at ~600m that stays legible
-// and beats implementing a scrolling camera for the MVP.
+// Photo-reference layout: deliveries counter top-left (the "checkpoint"
+// block), a big elapsed clock top-center with the order countdown under it,
+// crashes + score top-right, speedo bottom-left, and a round minimap bottom-
+// right with a dotted route. All flat pixel text — no panels.
+//
+// The minimap pre-renders the street network once to an offscreen canvas (it
+// never changes), then each frame blits it clipped to a circle and draws the
+// dynamic bits: dotted route, drop dot, and the bike as a white arrow. All
+// coordinates fit the whole bbox — at ~600m that stays legible and beats
+// implementing a scrolling camera for the MVP.
 
 const COLORS = {
-  mapBg: '#0d101c',
-  road: '#3a4260',
-  bikeLane: '#1d7a52',
-  route: '#ffb02e',
-  drop: '#ff4fa3',
-  bike: '#39ff9a',
+  mapBg: 'rgba(14, 18, 30, 0.55)',
+  road: 'rgba(255, 255, 255, 0.35)',
+  bikeLane: 'rgba(57, 255, 154, 0.55)',
+  route: '#ffffff',       // dotted white, like the reference
+  drop: '#ff3b3b',        // red destination dot
+  bike: '#ffffff',        // white player arrow
 };
 
 export function createHUD() {
   const el = (id) => document.getElementById(id);
   const els = {
     status: el('status'),
-    order: el('order'),
-    orderAddr: el('order-addr'),
-    orderCargo: el('order-cargo'),
-    orderDist: el('order-dist'),
-    orderClock: el('order-clock'),
-    timerFill: el('timerfill'),
-    score: el('score'),
+    elapsed: el('elapsed'),
+    remaining: el('remaining'),
+    orderline: el('orderline'),
     delivered: el('delivered'),
     streak: el('streak'),
+    crashes: el('crashes'),
+    scoreline: el('scoreline'),
     kmh: el('kmh'),
     fps: el('fps'),
     toast: el('toast'),
@@ -56,7 +57,7 @@ export function createHUD() {
         if (p.z > maxZ) maxZ = p.z;
       }
     }
-    const pad = 14;
+    const pad = 26; // corners are clipped away by the circle; keep it inboard
     const scale = Math.min((W - pad * 2) / (maxX - minX), (H - pad * 2) / (maxZ - minZ));
     const ox = (W - (maxX - minX) * scale) / 2;
     const oz = (H - (maxZ - minZ) * scale) / 2;
@@ -84,23 +85,31 @@ export function createHUD() {
 
   function drawMap(delivery, bike) {
     if (!base) return;
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    // Everything clips to the circle — the canvas corners stay transparent.
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, W / 2 - 2, 0, Math.PI * 2);
+    ctx.clip();
+
     ctx.drawImage(base, 0, 0);
 
-    // Active route.
+    // Active route: dotted white, like a paper map.
     if (delivery.phase === 'riding' && delivery.route) {
       ctx.strokeStyle = COLORS.route;
-      ctx.lineWidth = 3.5;
+      ctx.lineWidth = 3;
       ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.setLineDash([2, 9]);
       ctx.beginPath();
       delivery.route.forEach((p, i) => {
         const [mx, mz] = toMap(p.x, p.z);
         i === 0 ? ctx.moveTo(mx, mz) : ctx.lineTo(mx, mz);
       });
       ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    // Drop point.
+    // Drop point: pulsing red dot.
     if (delivery.order) {
       const [dx, dz] = toMap(delivery.order.dropX, delivery.order.dropZ);
       ctx.fillStyle = COLORS.drop;
@@ -115,21 +124,27 @@ export function createHUD() {
       ctx.stroke();
     }
 
-    // Bike: a triangle pointing along heading. World forward is (-sin h, -cos h);
-    // the triangle is drawn tip-up, and rotating a tip-up shape by -h makes its
+    // Bike: a white arrow along heading. World forward is (-sin h, -cos h);
+    // the arrow is drawn tip-up, and rotating a tip-up shape by -h makes its
     // tip track that forward vector on the north-up map.
     const [bx, bz] = toMap(bike.x, bike.z);
     ctx.save();
     ctx.translate(bx, bz);
     ctx.rotate(-bike.heading);
     ctx.fillStyle = COLORS.bike;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, -9);
-    ctx.lineTo(6, 7);
-    ctx.lineTo(-6, 7);
+    ctx.moveTo(0, -10);
+    ctx.lineTo(7, 8);
+    ctx.lineTo(0, 4);
+    ctx.lineTo(-7, 8);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
     ctx.restore();
+
+    ctx.restore(); // circle clip
   }
 
   // --- toasts ---
@@ -147,38 +162,44 @@ export function createHUD() {
     els.status.textContent = msg;
   }
 
+  // m:ss for the order countdown.
   const fmtClock = (s) => {
     const t = Math.max(0, Math.ceil(s));
     return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
   };
+  // hh:mm:ss for the big elapsed clock, like the reference shot.
+  const fmtElapsed = (s) => {
+    const t = Math.max(0, Math.floor(s));
+    const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+    const mm = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
+    const ss = String(t % 60).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  };
 
   // Per-frame refresh of everything data-driven.
-  function update(delivery, bike, kmh, fps) {
+  function update(delivery, bike, kmh, fps, elapsed = 0) {
     els.kmh.textContent = kmh;
     els.fps.textContent = `${fps} fps`;
+    els.elapsed.textContent = fmtElapsed(elapsed);
 
-    els.score.textContent = delivery.score;
     els.delivered.textContent = delivery.delivered;
-    els.streak.textContent = `×${delivery.streak} streak`;
+    els.streak.textContent = `×${delivery.streak} STREAK`;
+    els.crashes.textContent = bike.crashes ?? 0;
+    els.scoreline.textContent = `${delivery.score} PTS`;
 
     const active = delivery.phase === 'riding' && delivery.order;
-    els.order.classList.toggle('hidden', !delivery.order);
+    els.orderline.classList.toggle('hidden', !delivery.order);
     if (delivery.order) {
-      els.orderAddr.textContent = delivery.order.name
-        ? `${delivery.order.name} — ${delivery.order.label}`
-        : delivery.order.label;
-      els.orderCargo.textContent = `📦 ${delivery.order.cargo}`;
+      els.orderline.textContent = active
+        ? `${delivery.order.label.toUpperCase()} · ${Math.round(delivery.distLeft)}M · ${delivery.order.cargo.toUpperCase()}`
+        : 'DELIVERED!';
     }
     if (active) {
-      els.orderDist.textContent = `${Math.round(delivery.distLeft)} m`;
-      els.orderClock.textContent = fmtClock(delivery.timeLeft);
-      const frac = Math.max(0, delivery.timeLeft / delivery.timeLimit);
-      els.timerFill.style.width = `${frac * 100}%`;
-      els.timerFill.className = frac < 0.2 ? 'low' : frac < 0.45 ? 'mid' : '';
-      els.orderClock.classList.toggle('low', frac < 0.2);
-    } else if (delivery.order) {
-      els.orderDist.textContent = 'delivered';
-      els.orderClock.textContent = '—';
+      els.remaining.textContent = fmtClock(delivery.timeLeft);
+      els.remaining.classList.toggle('low', delivery.timeLeft / delivery.timeLimit < 0.2);
+    } else {
+      els.remaining.textContent = '--:--';
+      els.remaining.classList.remove('low');
     }
 
     drawMap(delivery, bike);
