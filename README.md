@@ -77,6 +77,9 @@ the core "car blocking the bike lane" gag depends on. Photorealistic options
 semantics and clash with the stylized look. See the decision log in
 [sprintboard.md](./sprintboard.md).
 
+**Play it:** https://vvexstudio.github.io/BQ-Courier/ (auto-deployed from
+`main` via GitHub Actions).
+
 ## Quickstart
 
 ```bash

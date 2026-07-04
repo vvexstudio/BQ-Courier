@@ -313,6 +313,14 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (night)** — **Deploy: GitHub Pages on every push to main.**
+  `.github/workflows/deploy.yml` builds with Node 20 + `npm ci` and ships
+  `dist/` through the official Pages artifact flow (no gh-pages branch).
+  `vite.config.js` gains `base: './'` so assets resolve from the
+  `/BQ-Courier/` subpath (verified: dist emits `./assets/…`).
+  `configure-pages` auto-enables Pages with the Actions source on first
+  run; if that step 403s, enable it once under Settings → Pages. Live URL:
+  https://vvexstudio.github.io/BQ-Courier/
 - **2026-07-04 (evening)** — **Phase 6.5: the neighborhood, turned up.**
   Street culture layer (`CULTURE` config; props from a parallel subagent in
   `entities/streetparty.js`) + a music bed:
