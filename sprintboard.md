@@ -313,6 +313,25 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (branch: art/snes-16bit)** — **The SNES art pass.** Less
+  Atari, more Super Nintendo, on a feature branch:
+  - **TV frame gone**: `retroFX.js` rewritten — no fisheye, no bezel, the
+    game is the whole screen. Pixel scale 3→2 (finer, still pixel art).
+  - **16-bit color pipeline** in the upscale shader: saturation 1.22 +
+    contrast 1.06, then **4×4 Bayer ordered-dither quantization to 5 bits
+    per channel** — flat fills stay flat, gradients break into era-correct
+    crosshatch instead of banding. Dither rides the low-res pixel grid.
+  - **Gradient sky**: scene.background is now a 1×128 canvas gradient
+    (deep zenith → fog-colored horizon), redrawn by the escalation each
+    frame via a `sky.set(top, horizon)` handle from `createScene`.
+  - **Procedural facade windows** (`buildings.js`, onBeforeCompile):
+    world-space window grids on near-vertical faces — floors every 3 m,
+    bays every 2.6 m, dark glass with sky-glint variation, ~8% warmly lit,
+    sill shading, storefront-darkened ground floor with a lintel line.
+    Zero geometry cost; still one merged draw call.
+  - **Verified live** at tier 0 (blue Brooklyn: windows, dithered sky
+    gradient, full-bleed frame) and tier 3 (deep red gradient, glowing lit
+    windows, purple-washed streets). No console errors; build clean.
 - **2026-07-04 (last call)** — **One-thumb touch rework.** The button rig
   lasted one commit; replaced with a single gesture surface (`ui/touch.js`
   rewrite): the lower 40% of the screen splits into three bands — FIRE

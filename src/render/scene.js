@@ -23,8 +23,35 @@ export function createScene(container) {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(PALETTE.sky);
   scene.fog = new THREE.Fog(PALETTE.fog, 260, 1100);
+
+  // Gradient sky: a 1×128 canvas stretched as the screen-space background —
+  // deep at the zenith, hazing into the fog color at the horizon, the way
+  // 16-bit skies always did it. `sky.set(top, horizon)` redraws it; the
+  // escalation calls that as the world slides toward the red end.
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width = 1;
+  skyCanvas.height = 128;
+  const skyCtx = skyCanvas.getContext('2d');
+  const skyTex = new THREE.CanvasTexture(skyCanvas);
+  skyTex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = skyTex;
+  const cTop = new THREE.Color();
+  const cBot = new THREE.Color();
+  const sky = {
+    set(skyColor, horizonColor) {
+      cTop.set(skyColor).offsetHSL(0, 0.05, -0.06); // zenith: a touch deeper
+      cBot.set(horizonColor ?? skyColor).offsetHSL(0, -0.02, 0.08); // horizon haze
+      const g = skyCtx.createLinearGradient(0, 0, 0, 128);
+      g.addColorStop(0, '#' + cTop.getHexString());
+      g.addColorStop(0.62, '#' + new THREE.Color().lerpColors(cTop, cBot, 0.55).getHexString());
+      g.addColorStop(1, '#' + cBot.getHexString());
+      skyCtx.fillStyle = g;
+      skyCtx.fillRect(0, 0, 1, 128);
+      skyTex.needsUpdate = true;
+    },
+  };
+  sky.set(PALETTE.sky, PALETTE.fog);
 
   const camera = new THREE.PerspectiveCamera(
     FX.fov, window.innerWidth / window.innerHeight, 1, 3000
@@ -63,7 +90,7 @@ export function createScene(container) {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Light handles go out so the escalation system can drag the whole scene
-  // from Brooklyn afternoon to Armageddon without reaching into the graph.
-  return { renderer, scene, camera, lights: { sun, rim, hemi } };
+  // Light + sky handles go out so the escalation system can drag the whole
+  // scene from Brooklyn afternoon to Armageddon without reaching into the graph.
+  return { renderer, scene, camera, lights: { sun, rim, hemi }, sky };
 }

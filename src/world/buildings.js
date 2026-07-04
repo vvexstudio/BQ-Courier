@@ -123,6 +123,58 @@ export function buildBuildings(buildingWays) {
     flatShading: true,
   });
 
+  // The 16-bit facade pass (art pass 2026-07-04): procedural window grids
+  // drawn in the fragment shader, so buildings read as *buildings* instead of
+  // extruded color slabs. Windows tile in world space (floors every 3m,
+  // bays every 2.6m) on near-vertical faces above the ground floor; a hash
+  // per window leaves ~8% of them warmly lit. The ground floor gets a subtle
+  // storefront darkening. Cost: a few ALU ops — geometry untouched, still
+  // one merged draw call.
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vBqWorld;
+        varying vec3 vBqNormal;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vBqWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+        vBqNormal = normalize(mat3(modelMatrix) * normal);`);
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vBqWorld;
+        varying vec3 vBqNormal;
+        float bqHash(vec2 p) {
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          float vert = 1.0 - abs(vBqNormal.y);
+          if (vert > 0.7) {
+            if (vBqWorld.y > 2.9) {
+              // Coordinate along the wall, whichever way it faces.
+              vec2 t = normalize(vec2(-vBqNormal.z, vBqNormal.x));
+              float u = dot(vBqWorld.xz, t);
+              vec2 cell = vec2(floor(u / 2.6), floor(vBqWorld.y / 3.0));
+              vec2 f = vec2(fract(u / 2.6), fract(vBqWorld.y / 3.0));
+              if (f.x > 0.28 && f.x < 0.72 && f.y > 0.32 && f.y < 0.8) {
+                float h = bqHash(cell + floor(vBqWorld.xz * 0.01) * 7.0);
+                vec3 glass = h > 0.92
+                  ? vec3(0.98, 0.86, 0.52)                   // somebody's home
+                  : mix(vec3(0.13, 0.16, 0.23),              // dark glass…
+                        vec3(0.35, 0.42, 0.55), bqHash(cell + 3.7) * 0.5); // …with sky glints
+                // Sill shadow line under each window sells the relief.
+                float sill = smoothstep(0.32, 0.35, f.y) * (1.0 - smoothstep(0.77, 0.8, f.y));
+                diffuseColor.rgb = mix(diffuseColor.rgb, glass, 0.92 * sill);
+              }
+            } else {
+              // Ground floor: storefront band, a shade darker, lintel line on top.
+              float lintel = step(2.55, vBqWorld.y);
+              diffuseColor.rgb *= mix(0.86, 0.7, lintel);
+            }
+          }
+        }`);
+  };
+
   const mesh = new THREE.Mesh(merged, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
