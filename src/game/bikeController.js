@@ -40,6 +40,7 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
   };
   let lastSteer = 0; // most recent steer input, for the cosmetic front-wheel yaw
   let crashCooldown = 0; // one scrape-y corner shouldn't count as five crashes
+  let stuckTime = 0; // seconds spent throttling into a wall going nowhere
 
   function forwardVec() {
     // Must match the model's world forward under group.rotation.y = heading.
@@ -203,6 +204,20 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
       } else {
         state.speed *= BIKE.hitSpeedKeep; // bleed momentum on a scrape
       }
+    }
+
+    // Wall unstick: throttling into a wall going nowhere for over a second
+    // gets an arcade kickback instead of a softlock. Exists mostly for the
+    // one-thumb mobile rig (auto-throttle, no brake), but it saves desktop
+    // riders the reverse-shuffle too.
+    if (r.hit && throttle > 0 && Math.abs(state.speed) < 1) {
+      stuckTime += dt;
+      if (stuckTime > 1.1) {
+        state.speed = -3.5;
+        stuckTime = 0;
+      }
+    } else {
+      stuckTime = 0;
     }
 
     // --- Visual lean: bike tips into the turn, target ~ turn rate, smoothed ---

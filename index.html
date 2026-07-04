@@ -107,35 +107,33 @@
 
       .hidden { display: none !important; }
 
-      /* ---- touch controls: only mounted on touch devices (body.touch) ---- */
+      /* ---- touch controls: one-thumb gesture surface (body.touch only) ----
+         The lower ~40% of the screen is one pointer surface split into three
+         horizontal bands: FIRE / STEER / JUMP. Flick up anywhere = boost.
+         Hints are non-interactive; the surface does all the hit-testing. */
       #touch { display: none; }
-      body.touch #touch { display: block; }
+      body.touch #touch {
+        display: block;
+        position: fixed; left: 0; right: 0; bottom: 0; height: 40vh;
+        touch-action: none;
+      }
       body.touch, body.touch #app { touch-action: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-      .steer {
-        position: fixed; bottom: 0; width: 38vw; height: 26vh;
-        display: flex; align-items: center; justify-content: center;
-        font-family: 'Press Start 2P', monospace; font-size: 26px;
-        color: rgba(255, 255, 255, 0.28);
-        user-select: none; -webkit-user-select: none;
+      .tband {
+        position: absolute; left: 0; right: 0;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px; box-sizing: border-box;
+        font-family: 'Press Start 2P', monospace;
+        color: rgba(255, 255, 255, 0.22);
+        pointer-events: none; user-select: none; -webkit-user-select: none;
       }
-      #steer-left { left: 0; }
-      #steer-right { right: 0; }
-      #tbuttons {
-        position: fixed; right: 10px; bottom: 27vh;
-        display: flex; flex-direction: column; gap: 10px;
-      }
-      #tbuttons button {
-        width: 62px; height: 48px;
-        font-family: 'Press Start 2P', monospace; font-size: 7px;
-        color: var(--ink);
-        background: rgba(14, 18, 30, 0.5);
-        border: 2px solid rgba(255, 255, 255, 0.55);
-        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
-        user-select: none; -webkit-user-select: none; touch-action: none;
-      }
-      #tbuttons button:active { background: rgba(255, 176, 46, 0.55); }
-      /* Touch layout: the map moves above the left steer zone, help goes away. */
-      body.touch #maphud { left: 12px; right: auto; bottom: 27vh; align-items: flex-start; }
+      #tz-fire  { top: 0; height: 24%; font-size: 8px; justify-content: center;
+                  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+                  border-bottom: 1px dashed rgba(255, 255, 255, 0.14); }
+      #tz-steer { top: 24%; height: 56%; font-size: 26px; }
+      #tz-jump  { bottom: 0; height: 20%; font-size: 8px; justify-content: center;
+                  border-top: 1px dashed rgba(255, 255, 255, 0.14); }
+      /* Touch layout: map to the upper right (under the crash panel), no help. */
+      body.touch #maphud { top: 84px; right: 10px; bottom: auto; left: auto; }
       body.touch #help { display: none; }
       body.touch #status { display: none; }
 
@@ -197,15 +195,9 @@
     <div id="ticker" class="hud"></div>
 
     <div id="touch">
-      <div id="steer-left" class="steer">◀</div>
-      <div id="steer-right" class="steer">▶</div>
-      <div id="tbuttons">
-        <button id="tb-hop">HOP</button>
-        <button id="tb-boost">BOOST</button>
-        <button id="tb-brake">BRAKE</button>
-        <button id="tb-bell">BELL</button>
-        <button id="tb-bagel">BAGEL</button>
-      </div>
+      <div id="tz-fire" class="tband">FIRE · FLICK ▲ BOOST</div>
+      <div id="tz-steer" class="tband"><span>◀</span><span>▶</span></div>
+      <div id="tz-jump" class="tband">JUMP</div>
     </div>
 
     <script type="module" src="/src/main.js"></script>

@@ -313,6 +313,16 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (last call)** — **One-thumb touch rework.** The button rig
+  lasted one commit; replaced with a single gesture surface (`ui/touch.js`
+  rewrite): the lower 40% of the screen splits into three bands — FIRE
+  (tap = bagel) on top, STEER in the middle (hold; steering follows the
+  thumb's x with a small center deadband), JUMP strip at the bottom — and a
+  quick upward flick anywhere is a ~1.5 s BOOST burst. Bell and brake are
+  gone from mobile; to cover brake's one real job, the controller gained a
+  **wall unstick** (throttling into a wall at <1 m/s for 1.1 s = automatic
+  kickback), which quietly helps desktop too. Map moves to the upper right
+  under the crash panel. Single-pointer tracking; extra fingers ignored.
 - **2026-07-04 (later that night)** — **Mobile touch controls + Yiddish
   toned down.** New `ui/touch.js`: a portrait-phone rig that mounts only on
   touch devices (or with `?touch` for desktop debugging) and drives the
