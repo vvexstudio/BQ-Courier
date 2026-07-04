@@ -8,6 +8,7 @@ import { fetchOSM, partition } from './overpass.js';
 import { setOrigin, bboxCenter } from './geo.js';
 import { buildBuildings } from './buildings.js';
 import { buildRoads } from './roads.js';
+import { buildStreetLife } from './streetlife.js';
 import { buildRoadGraph, isRideable } from './roadGraph.js';
 import { project } from './geo.js';
 import { PALETTE } from '../config.js';
@@ -203,13 +204,22 @@ export async function buildWorld(bbox, { onStatus } = {}) {
   const roadGraph = buildRoadGraph(roads);
   world.add(buildTrees(buildingGroup.userData.footprints ?? [], roadGraph));
 
+  // Street-life density pass: sidewalks, parked cars, rooftop clutter. Parked
+  // cars hand back footprints so the collider treats them like small buildings.
+  const streetLife = buildStreetLife(roads, buildingGroup.userData.roofs ?? []);
+  world.add(streetLife.group);
+
   return {
     world,
-    footprints: buildingGroup.userData.footprints ?? [],
+    footprints: [
+      ...(buildingGroup.userData.footprints ?? []),
+      ...streetLife.carFootprints,
+    ],
     spawn: pickSpawn(roads),
     roadGraph,
     addresses: collectAddresses(buildings),
     roadLines: collectRoadLines(roads),
+    hydrants: streetLife.hydrantSpots,
     stats: {
       buildings: buildingGroup.userData.count ?? 0,
       roads: roadGroup.userData.roadCount ?? 0,

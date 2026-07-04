@@ -13,6 +13,7 @@
 // intersections connect without any welding tolerance.
 
 import { project } from './geo.js';
+import { isBikeLane } from './roads.js';
 
 const CELL = 32; // meters, spatial grid for segment queries
 
@@ -47,6 +48,7 @@ export function buildRoadGraph(roadWays) {
 
   for (const way of roadWays) {
     if (!isRideable(way.tags)) continue;
+    const bike = isBikeLane(way.tags); // segments carry this for the boost/gag logic
     const pts = way.geometry;
     for (let i = 0; i < pts.length - 1; i++) {
       const a = getNode(pts[i]);
@@ -63,7 +65,7 @@ export function buildRoadGraph(roadWays) {
       const idx = segments.length;
       segments.push({
         ax: a.n.x, az: a.n.z, bx: b.n.x, bz: b.n.z,
-        dx, dz, len, a: a.key, b: b.key,
+        dx, dz, len, a: a.key, b: b.key, bike,
       });
 
       // Insert into every grid cell the segment's bbox touches.

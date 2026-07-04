@@ -41,29 +41,48 @@ completeness is explicitly *not* the bar.
 
 ## 🏃 Current sprint
 
-**Sprint 03 — The delivery loop (Phase 3)**
+**Sprint 04 — The Brooklyn obstacles + juice (Phases 4–5)**
 
-> Goal: turn the rideable world into a *game with a point*. An order spawns at a
-> real WB address, an on-screen arrow points the way, arriving in the drop zone
-> fires "Delivered!", and a score + timer track the run.
+> Goal: make it *fun*. The street becomes the antagonist: curated obstacles
+> seeded along every route, stakes (the wipeout), rewards for skill (near-miss
+> combos), two new verbs (bunny hop, boost), a street-life density pass, and a
+> procedural chiptune SFX layer.
 
-- **Status:** implemented; in-browser playtest done (scripted rider, 2026-07-03)
-  — found and fixed a nav bug (aim point ignored progress along the current
-  route segment, so the chevron pointed backward on long blocks). Full loop
-  verified: 2 consecutive deliveries with correct scoring/streak, plus the
-  expiry path (streak lost, run continues). A human feel-check (fps, handling)
-  on real hardware is still worth a ride. Orders spawn at real
-  tagged addresses (1437 in the bbox), an A* route over a rideable-roads graph
-  renders as a glowing ribbon in-world + on a minimap, a nav chevron points down
-  the route, drop-zone arrival scores against a route-length timer with streaks,
-  and the HUD is a full "delivery app" layer (order card, timer bar, score,
-  speedo, minimap, toasts). Also shipped **lane assist**: hands-off, the bike
-  follows the street's curve instead of coasting straight into a facade — the
-  navigation complaint from Sprint 02 playtesting.
-- **Verified:** Node smoke test against live Overpass — graph builds (1376
-  nodes / 1516 segments), origin snaps to a road at 4.5 m, 10/10 routes to
-  random addresses succeed (221–707 m). `npm run build` clean.
-- **Next up:** human feel-check on real hardware, then Phase 4 (the obstacles).
+- **Status:** implemented (2026-07-04). Shipped in one pass:
+  - **Wipeout**: any hard hit above 5.5 m/s knocks the rider down for 1.5 s
+    (tumble pose, control lock, boost spilled). The run never ends — the
+    seconds are the punishment.
+  - **Near-miss combos**: passing within ~2.4 m of any obstacle above 7 m/s
+    scores +25 × combo (4 s window). Crash resets the combo.
+  - **Obstacle bestiary** (`entities/props.js` + `game/traffic.js`): car
+    parked in the bike lane (hazards blinking), the dooring (door swings open as
+    you approach), phone-zombie + Hasidic-family jaywalkers, dog walker
+    whose leash is a hoppable tripwire, trash-bag mountain (soft, bursts),
+    angled box truck (reversing beeps), pigeon flocks (scatter for +5/bird),
+    roaming cars + school bus that follow the street graph and honk, and the
+    salmon — a courier riding the wrong way down *your* route.
+  - **Route seeding**: obstacles spawn procedurally along the active A* route
+    every ~52 m (reseeded on new order + reroute); bike-lane segments prefer
+    lane blockers — the gag is a spawn rule.
+  - **Two verbs**: Shift bunny-hop (clears leashes/trash, softer steering
+    midair) and E boost (meter charges from riding unblocked bike lanes and
+    drafting vehicles; +45% top speed).
+  - **Street life** (`world/streetlife.js`): sidewalks on every dressed
+    street, ~220 curb-parked cars *with collision*, 55 rooftop water towers,
+    380 AC units, hydrants, trash cans.
+  - **Sound** (`audio/sfx.js`): 13 procedural WebAudio chiptune SFX — bell
+    (B, scatters pedestrians + pigeons), crash, whoosh, stings, horn, etc.
+- **Verified:** `npm run build` clean; live in-browser playtest with a
+  scripted route-following rider (see changelog). 59 fps with the full
+  density pass + 20 active obstacles.
+- **Addendum (same day): the chaos director.** Unscripted set pieces near the
+  player — runaway car → hydrant geyser (rideable spray, +15), and the
+  intersection bus summit with arguing elders (see changelog). Live-verified:
+  geyser erupts behind the slewed wreck, summit bus + elders read perfectly
+  at chase-cam range, reseed-per-order stable (found + fixed a salmon-cleanup
+  crash that silently killed obstacle seeding after the first order).
+- **Next up:** human feel-check + tuning pass (obstacle density, near-miss
+  band), then Phase 5 leftovers: end card, speed FX, awning/storefront pass.
 
 > **Sprint 02 — The bike + controls (Phase 2): ✅ DONE.** A courier bike now
 > rides the verified world. Placeholder bike + rider, arcade physics
@@ -135,22 +154,44 @@ Phases are sequential but the deferred list is designed-for, not built.
 - [x] *(bonus)* Dense HUD: order card, timer bar, score panel, speedo, live
       minimap, event toasts (`ui/hud.js`, `index.html`)
 
-### Phase 4 — The Brooklyn obstacles (the vibe)
+### Phase 4 — The Brooklyn obstacles (the vibe) ✅ (implemented 2026-07-04)
 
-Curated, hand-placed along the route for MVP (not procedural yet):
+Shipped as *procedural placement of curated types* along the active route
+(better than hand-placing: every order is a fresh gauntlet):
 
-- [ ] Car parked dead in the bike lane (forces a swerve)
-- [ ] Car stopped mid-lane, music thumping, driver unbothered
-- [ ] Big slow yellow school bus honking, blocking the street
-- [ ] Pedestrians (incl. Hasidic families) stepping out — near-misses
-- [ ] One aggressive driver that nudges toward you
+- [x] Car parked dead in the bike lane, hazards blinking (forces a swerve)
+- [x] The dooring — parked car's door swings open as you approach
+- [x] Big slow yellow school bus honking, roaming the street graph
+- [x] Pedestrians (incl. Hasidic families, phone zombies) crossing mid-block
+- [x] Dog walker with a leash tripwire (bunny-hop over it)
+- [x] Trash-bag mountain (soft: bursts, slows, +10)
+- [x] Box truck angled mid-reverse, beeping
+- [x] Pigeon flock (scatters for +5/bird)
+- [x] The salmon — courier riding the wrong way down your route
+- [x] *(mechanics)* Wipeout crash state, near-miss combo scoring, bunny hop
+      (Shift), boost meter (E; charged by bike lanes + drafting)
+- [ ] One aggressive driver that nudges toward you (deferred — roamers don't
+      target the player yet)
 
-### Phase 5 — Juice & share
+### Phase 6 — The escalation ✅ (implemented 2026-07-04)
 
-- [ ] Near-miss bonus + feedback
+The run ends the world: delivery-driven tier ladder (3/6/9), environment
+slide to a red-sky hellscape, sinkholes → zombie hordes + saucer + plane
+crashes → lava + kaiju, powerups (pizza/coffee/bagel shield/clock), and the
+bagel toss (Q). See the changelog for the full inventory. Deliberately
+excluded: any real-world terror-attack framing — plane crashes are generic
+disaster-movie mayhem with nobody at the controls.
+
+### Phase 5 — Juice & share (partially shipped 2026-07-04)
+
+- [x] Near-miss bonus + feedback (ticker + combo multiplier + whoosh)
+- [x] Sound: procedural chiptune SFX — bell, horns, crash, stings (`audio/sfx.js`)
+- [x] Street-life density pass: sidewalks, parked cars, water towers, AC units,
+      hydrants, trash cans (`world/streetlife.js`)
 - [ ] Speed FX (motion blur / bloom — see deferred postprocessing)
-- [ ] "Delivered — Score: X" end card designed for screenshots
-- [ ] Sound: horns, music snippets, bike bell
+- [ ] "Delivered — Score: X" end card designed for screenshots (needs a run
+      structure — currently endless)
+- [ ] Storefront awnings with procedural names (the Williamsburg roast)
 
 ---
 
@@ -230,6 +271,23 @@ Short ADR-style records of choices that aren't obvious from the code.
   well tagged), so the order card reads "184 Broadway", not "waypoint 7". The
   drop point is the route's road-snapped end, so arrival never requires
   entering the building footprint.
+- **2026-07-04 — Obstacles: procedural placement of curated types, seeded on
+  the route.** Instead of hand-placing (the original Phase 4 plan) or a world-
+  wide spawner, obstacles spawn along the *active A\* route* (~every 52 m,
+  reseeded per order/reroute, bike-lane segments biased toward lane blockers).
+  Hand-set feel, fresh gauntlet every order, and zero cost for streets the
+  player never sees. Dynamic obstacles use circle colliders resolved in
+  `traffic.js` (push-out + crash/bump/soft), *not* the footprint grid — they
+  move and need near-miss distance anyway. Static parked cars go the other
+  way: rectangle footprints injected into the existing building collider.
+- **2026-07-04 — Boost charges from riding well, not from pickups.** The meter
+  fills while riding an unblocked bike lane or drafting a vehicle. This makes
+  the bike-lane-blocker gag *mechanical*: a car in your lane is stealing your
+  boost line, not just your path. Crash spills the whole meter.
+- **2026-07-04 — Sound is synthesized, not sampled.** 13 SFX from oscillators
+  + one noise buffer (`audio/sfx.js`): zero assets, zero load time, fits the
+  16-bit register, and the AudioContext unlock (first keydown) is the only
+  ceremony. Sampled audio stays open for music later.
 - **2026-06-19 — Flat-layer rendering: DoubleSide ribbons + logarithmic depth.**
   Road/bike ribbons are built as per-segment quads wound facing down, so they
   must render `DoubleSide` to be visible from above. Ground/road/bike are nearly
@@ -255,6 +313,152 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (evening)** — **Phase 6.5: the neighborhood, turned up.**
+  Street culture layer (`CULTURE` config; props from a parallel subagent in
+  `entities/streetparty.js`) + a music bed:
+  - **The celebration** (chaos director, any tier): the Knicks finally won
+    and this block is where everyone went — 10 jumping fans in orange and
+    blue mobbing the street around a burning couch, crowd-chant SFX in
+    range, ~60 s. Fans are dead-stop bumps ("GO KNICKS"); the couch is
+    furniture, furniture is hard.
+  - **The parade** (35%/order): a float + 8 marchers with rainbow flags
+    sweeping back and forth across a block on the route; whistles + cheers
+    in range; thread the gaps for near-misses.
+  - **Oncoming traffic** (1–2/order by tier): cars driving the player's
+    route the wrong way, weaving off their line, horn inside 15 m — the
+    salmon's four-wheeled cousins.
+  - **More neighbors**: crossing groups are now all-Hasidic families (wider
+    spawn band), plus 2 stroller pairs per route pacing the sidewalks —
+    pass within 12 m and you hear a soft hummed **niggun** (synthesized,
+    wordless, warm — a melody on a stoop, not a caricature).
+  - **The drunk** (60%/order): weaving from the parked cars to the middle
+    of the bike lane and back, throttled hiccup in range, dead-stop bump
+    ("HE'S FINE").
+  - **Yiddish scoring**: DELIVERED → "MAZEL TOV!", wipeouts → "OY GEVALT —
+    …", combo ≥3 → "SHTARK!", combo ≥5 → "A MECHAYEH!", expiry → "oy vey".
+  - **Music** (`audio/sfx.js`): a sparse procedural lo-fi bed at 84 BPM on
+    its own gain bus (~0.07 effective — under every SFX): bass root on the
+    one, occasional fifth, whispered hats, a filtered pad every other bar.
+    Follows the escalation: warm → wary → minor → at tier 3 the music stops
+    and only a 55 Hz ground-hum drone remains. Standard lookahead
+    scheduler; starts on the first keypress with the audio unlock.
+  - Set pieces gained a generic `dispose()` in the lifecycle; the debug
+    handle now exposes manual triggers (`_debug.spawnRiot` etc.) — used to
+    stage verification shots.
+  - **Verified live:** celebration (fans + burning couch on the route
+    ribbon), parade (rainbow flags crossing, float leading, salmon
+    threading it), 2 stroller pairs + 3 families + oncoming car seeded per
+    order, `npm run build` clean, zero console errors. Playtest note: the
+    preview tab throttles rAF when backgrounded — game state is fine, it's
+    a headless-tab artifact, not a bug.
+- **2026-07-04 (later still)** — **Phase 6: the escalation. The run now ends
+  the world.** A tier ladder driven by deliveries (3/6/9 →
+  SOMETHING IS OFF / THE INVASION / ARMAGEDDON, `game/escalation.js` +
+  `ESCALATION` config) lerps the whole environment per frame — sky, fog,
+  sun, hemisphere — from Brooklyn afternoon to a blood-red hellscape, and
+  arms tier-gated spawn tables in the obstacle system:
+  - **Sinkholes** (T1+): sleep under the asphalt, rumble open as you
+    approach; ride in on the ground and you're SWALLOWED BY BROOKLYN
+    (wipeout + fished out at the rim). Hop over the gap.
+  - **Zombie hordes** (T2+): packs that mill, then shamble at you in scent
+    range. Plow through above 8 m/s for +10 BOWLED OVER; roll up slow and
+    they GRAB (heavy slow — pedal out). Groan SFX in range.
+  - **The saucer** (T2+): cruises the streets at altitude; locks onto slow
+    riders — beam down, gentle lift, and at ~5.5 m it loses interest and
+    drops you (new hard-landing rule: touching down faster than −7.5 m/s is
+    a crash). Counterplay: stay above ~11 m/s and it can't hold you.
+  - **Plane crashes** (T2+, chaos director): a generic airliner comes in
+    low, hits a block near the route — explosion, and the street below
+    becomes a rubble field (hard obstacles, ~45 s). No one is flying these;
+    it's the apocalypse, planes just do this.
+  - **Lava fissures** (T3): glowing cracks across the road; ride through =
+    TOASTED (heavy slow, 1.5 s burn cooldown), hop clears.
+  - **The kaiju** (T3): a 55 m silhouette walking a slow ring outside the
+    bbox, roaring on a timer. Pure horizon dread; he never enters the map.
+  - **Powerups** (`game/powerups.js`, 2/route): pizza = boost meter full,
+    coffee = 9 s overdrive (+35% top speed), bagel shield = absorbs the next
+    crash (shield state in the controller; crash() consumes it and returns
+    false), bodega clock = +12 s on the order (clamped to the limit).
+  - **The bagel toss** (Q, `BAGEL` config): arcing projectile; direct hit
+    stuns a zombie 6 s for +15 GLAZED, and works as an insistent bell on
+    pedestrians/pigeons — *on a direct hit only* (found live: reusing
+    onBell meant bagels detonated at the 11 m bell radius; onBell now takes
+    a radius override).
+  - 8 new synthesized SFX: explosion, roar, rumble, ufo, groan, pickup,
+    toss, glazed. Escalation tier toasts. Prop meshes built in parallel by a
+    subagent (`entities/apocalypse.js`, 10 factories, spec-matched).
+  - **Verified live:** tiers climb on schedule, sky reaches #8e1f1f, T3
+    route seeds 3 sinkholes + 2 hordes + 4 lava cracks alongside the normal
+    bestiary, zombies chased and *grabbed the rider mid-screenshot*, bagel
+    glaze deterministically probed (stun 6.0 → decay, +15), UFO + kaiju
+    present, powerups seeded, 60 fps in full Armageddon, zero console
+    errors, `npm run build` clean.
+- **2026-07-04 (later)** — **The chaos director: unscripted street theater.**
+  Two set pieces that fire *near the player* instead of being seeded on the
+  route (`CHAOS` in config, logic in `game/traffic.js`):
+  - **Hydrant catastrophe**: every 13–25 s the director picks a hydrant
+    30–95 m from the bike, launches a hazard-blinking car off the nearest
+    road (fishtailing, skid SFX), crashes it into the hydrant, and erupts a
+    water geyser (jittering column + ballistic droplets + splash ring,
+    `makeGeyser` in `entities/props.js`). The wreck is a hard obstacle for
+    ~30 s; riding through the spray pays "SHOWERED +15". Hydrant positions
+    now exported from `world/streetlife.js`.
+  - **The intersection summit**: per order (75%), a *lettered* school bus
+    (white side boards with blocky marks — suggestion, not typography) parks
+    dead across the first real intersection (graph nodes with 3+ incident
+    segments) past the route's opening stretch, and 2–4 elders (`makeElder`:
+    long coat, brimmed hat, beard, arms that *actually gesticulate*, with
+    periodic emphatic flourishes) hold a debate in the street. Within
+    earshot you hear the argument — a synthesized two-voice nonverbal mutter
+    (`sfx.argue`: rhythm and pitch, no words). The bus and the elders are
+    near-missable; hitting an elder is a dead-stop bump ("WATCH THE
+    ELDERS"), never a wipeout. Ringing the bell gets you "THE SUMMIT
+    CONTINUES". New SFX: skid, splash, argue. Generalized the dog's
+    no-wipeout collider into a `stop`-labeled circle both use.
+- **2026-07-04** — **Phases 4+5 (partial): the street fights back.** One big
+  pass, live-verified in-browser with a scripted route-following rider:
+  - `game/traffic.js` + `entities/props.js`: dynamic obstacle layer. Curated
+    Brooklyn hazards seeded procedurally along the active route (~every 52 m,
+    reseeded on order/reroute; bike-lane segments prefer the lane-blocker gag):
+    hazard-blinking lane blocker, dooring car (door swings on approach), phone
+    zombie + Hasidic family crossers, dog walker with hoppable leash tripwire,
+    bursting trash pile, angled box truck (reverse beeps), pigeon flocks
+    (+5/bird flushed). Roamers follow the street graph forever: cruising cars,
+    honking school bus, and the salmon — a wrong-way courier riding your route
+    at you, weaving. Circle colliders vs. the bike; hard fast hits wipe out,
+    slow ones bump, soft ones slow + amuse.
+  - `game/bikeController.js`: **wipeout** (hard hit > 5.5 m/s → 1.5 s down,
+    tumble pose, boost spilled, run continues), **bunny hop** (Shift; clears
+    leash/trash; 0.4× steering midair), **boost** (E; meter charges riding
+    unblocked bike lanes + drafting vehicles, +45% top speed / +70% accel;
+    road-graph segments now carry a `bike` flag for the lane check).
+  - **Near-miss combos**: pass within 2.4 m above 7 m/s → +25 × combo, 4 s
+    window, crash resets. Scored through `delivery.addScore`.
+  - `world/streetlife.js`: density pass — sidewalk ribbons on all dressed
+    streets, 220 curb-parked cars (merged geometry + collider footprints, so
+    they crash like buildings), 55 water towers, 380 AC units, 90 hydrants,
+    130 trash cans. `buildings.js` exports roof records for tower placement.
+  - `audio/sfx.js`: 13 procedural WebAudio chiptune sounds, no assets — bell
+    (B; scatters peds + pigeons via `traffic.ring`), crash, whoosh, order/
+    win/lose stings, hop, boost, horn, reverse beep, flutter, creak, blip.
+  - HUD: event ticker (near-miss/combo/wipeout), boost bar under the speedo,
+    updated help line. New keys: Shift hop, E boost, B bell.
+  - **Verified live:** full delivery (+596 with time bonus) → immediate
+    wipeout on the next leg → remount → riding again; near-miss +25 fired;
+    boost charged to 22 and spilled to 0 on the crash; obstacles reseeded on
+    the new order; 59 fps with everything on; zero console errors. `npm run
+    build` clean. (Overpass mirrors were down for the *Node* smoke test —
+    failure is in the fetch, pre-existing; browser used the cached/live copy.)
+- **2026-07-04** — **Lighting fix: street canyons were black.** At street
+  level, every facade facing away from the low sun rendered near-silhouette —
+  the daytime palette never reached the walls (likely the root of "graphics
+  aren't great"). Raised the sun (120,300,60 @ 1.3) so canyons catch light and
+  turned the hemisphere into a real ambient (near-white sky/ground colors,
+  intensity 2.2 — vertical walls only take ~half of a hemisphere). Tuned live
+  in-browser; facades now read as their brick/terracotta/pastel colors from
+  the chase cam. Also shuffled street-life way order so the parked-car /
+  hydrant caps spread across the whole bbox instead of exhausting on the
+  first ways Overpass returns.
 - **2026-07-03** — **Playtest + fix: nav aim point anchored to segment start.**
   In-browser playtest of Phase 3 (scripted rider driving the real
   `bikeCtl.update`/`delivery.update` loop). Found: `aimPoint()` in

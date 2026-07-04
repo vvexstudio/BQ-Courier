@@ -50,10 +50,34 @@
       #crashpanel .big { font-size: 26px; }
       #scoreline { font-size: 8px; color: var(--accent); margin-top: 8px; }
 
-      /* ---- bottom-left: speedo ---- */
+      /* ---- bottom-left: speedo + boost meter ---- */
       #speedo { bottom: 20px; left: 24px; }
       #speedo .big { font-size: 22px; }
       #fps { font-size: 7px; color: var(--dim); margin-top: 6px; }
+      #boostwrap {
+        width: 120px; height: 10px; margin-top: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+      }
+      #boostbar {
+        height: 100%; width: 0%;
+        background: var(--accent);
+        transition: width 0.1s linear;
+      }
+      #boostbar.full { background: var(--good); }
+      #boostbar.firing { background: var(--hot); }
+
+      /* ---- event ticker: near-misses, combos, wipeouts ---- */
+      #ticker {
+        top: 46%; left: 50%; transform: translate(-50%, -50%) scale(0.85);
+        font-size: 13px; letter-spacing: 0.06em;
+        color: var(--accent);
+        text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+        opacity: 0; transition: opacity 0.15s ease, transform 0.15s ease;
+        text-align: center;
+      }
+      #ticker.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      #ticker.bad { color: var(--bad); }
 
       /* ---- bottom-center: status + help ---- */
       #status { bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 7px; color: var(--dim); text-align: center; }
@@ -125,6 +149,8 @@
     <div id="speedo" class="hud">
       <div class="big"><span id="kmh">0</span></div>
       <div class="cap">KM/H</div>
+      <div id="boostwrap"><div id="boostbar"></div></div>
+      <div class="cap">BOOST</div>
       <div id="fps">— fps</div>
     </div>
 
@@ -132,10 +158,11 @@
 
     <div id="maphud" class="hud">
       <canvas id="minimap" width="400" height="400"></canvas>
-      <div id="help">W/S THROTTLE · A/D STEER · SPACE BRAKE · O FREE-CAM</div>
+      <div id="help">W/S THROTTLE · A/D STEER · SPACE BRAKE · SHIFT HOP · E BOOST · B BELL · Q BAGEL · O FREE-CAM</div>
     </div>
 
     <div id="toast" class="hud"><div id="toast-main"></div><div class="sub" id="toast-sub"></div></div>
+    <div id="ticker" class="hud"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

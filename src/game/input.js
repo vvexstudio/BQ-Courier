@@ -10,7 +10,7 @@ const DOWN = new Set();
 const HANDLED = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'Space',
+  'Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyB', 'KeyQ',
 ]);
 
 const once = new Set(); // one-shot key presses (e.g. toggles), drained per read
@@ -38,6 +38,17 @@ export function createInput(target = window) {
     },
     get brake() {
       return DOWN.has('Space');
+    },
+    // Hold to dump the boost meter into a sprint.
+    get boost() {
+      return DOWN.has('KeyE');
+    },
+    // One-shot bunny hop (either Shift). Drains both codes so a double-tap of
+    // left+right shift can't queue two hops.
+    hop() {
+      const l = this.pressed('ShiftLeft');
+      const r = this.pressed('ShiftRight');
+      return l || r;
     },
     // True exactly once per physical press of `code`. Used for view toggles etc.
     pressed(code) {

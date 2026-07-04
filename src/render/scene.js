@@ -32,8 +32,10 @@ export function createScene(container) {
   camera.position.set(120, 140, 180);
 
   // Key (warm daylight sun), rim (cool sky), and ambient fill.
-  const sun = new THREE.DirectionalLight(PALETTE.sun, 1.15);
-  sun.position.set(180, 260, 120);
+  // Sun sits high so the street canyons stay lit — at the old low angle,
+  // every facade facing away from it rendered near-black at street level.
+  const sun = new THREE.DirectionalLight(PALETTE.sun, 1.3);
+  sun.position.set(120, 300, 60);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 10;
@@ -49,7 +51,11 @@ export function createScene(container) {
   rim.position.set(-160, 120, -140);
   scene.add(rim);
 
-  scene.add(new THREE.HemisphereLight(PALETTE.sky, PALETTE.ground, 0.9));
+  // The hemisphere doubles as the ambient: vertical walls take ~half of it,
+  // so it needs to be strong (and near-white) for facades to read as their
+  // palette color instead of a silhouette. Tuned live 2026-07-04.
+  const hemi = new THREE.HemisphereLight(0xdfeeff, 0xcfd8c4, 2.2);
+  scene.add(hemi);
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -57,5 +63,7 @@ export function createScene(container) {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  return { renderer, scene, camera };
+  // Light handles go out so the escalation system can drag the whole scene
+  // from Brooklyn afternoon to Armageddon without reaching into the graph.
+  return { renderer, scene, camera, lights: { sun, rim, hemi } };
 }

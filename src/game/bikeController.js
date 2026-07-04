@@ -12,7 +12,7 @@
 // the bike from "crabbing" (body pointing one way while sliding another).
 
 import * as THREE from 'three';
-import { BIKE, LANE_ASSIST } from '../config.js';
+import { BIKE, LANE_ASSIST, HOP, BOOST, WIPEOUT, POWERUPS } from '../config.js';
 
 function wrapAngle(a) {
   while (a > Math.PI) a -= 2 * Math.PI;
@@ -27,7 +27,16 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     heading: spawn.heading ?? 0,
     speed: 0, // signed: + forward, - reverse
     lean: 0,
-    crashes: 0, // hard wall hits (HUD counter)
+    crashes: 0, // hard hits (HUD counter)
+    y: 0,       // air height (bunny hop)
+    vy: 0,
+    wipeout: 0, // s left flat on the asphalt; >0 means down
+    boost: 0,   // 0..100 meter, charged by lanes + drafting
+    boosting: false,
+    hopped: false, // frame flag for SFX, consumed by the game loop
+    shield: false,    // bagel shield: absorbs the next crash
+    shieldUsed: false, // frame flag — the loop toasts + plays the crunch
+    overdrive: 0,      // s of coffee left: free top-speed multiplier
   };
   let lastSteer = 0; // most recent steer input, for the cosmetic front-wheel yaw
   let crashCooldown = 0; // one scrape-y corner shouldn't count as five crashes
@@ -37,11 +46,82 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     return { x: -Math.sin(state.heading), z: -Math.cos(state.heading) };
   }
 
-  function update(dt, input) {
+  // Knock the rider down. The obstacle system calls this too, so it lives here
+  // and owns the debounce: a crash mid-crash is the same crash.
+  function crash() {
+    if (state.wipeout > 0 || crashCooldown > 0) return false;
+    if (state.shield) {
+      // The bagel shield takes the hit. Returns false: no wipeout happened.
+      state.shield = false;
+      state.shieldUsed = true;
+      state.speed *= 0.5;
+      crashCooldown = 1.0; // brief mercy window so one pileup ≠ two hits
+      return false;
+    }
+    state.wipeout = WIPEOUT.downTime;
+    state.crashes++;
+    state.speed *= WIPEOUT.bounceBack; // small reversed kickback, arcade-style
+    state.boost = 0; // eating asphalt spills the meter
+    state.boosting = false;
+    crashCooldown = WIPEOUT.downTime + 0.6;
+    return true;
+  }
+
+  function update(dt, input, env = {}) {
+    state.hopped = false;
+
+    // --- Down on the asphalt: no control, bleed everything, get back up ---
+    if (state.wipeout > 0) {
+      state.wipeout = Math.max(0, state.wipeout - dt);
+      crashCooldown = Math.max(0, crashCooldown - dt);
+      state.speed *= Math.max(0, 1 - dt * 6);
+      state.y = Math.max(0, state.y - dt * 4); // if we crashed mid-hop, come down
+      state.vy = 0;
+      const f0 = forwardVec();
+      const slid = collider.resolve(
+        state.x, state.z,
+        state.x + f0.x * state.speed * dt, state.z + f0.z * state.speed * dt
+      );
+      state.x = slid.x;
+      state.z = slid.z;
+      applyToModel(dt);
+      return state;
+    }
+
     const throttle = input.throttle; // -1..1
     const steer = input.steer;       // -1..1
     const braking = input.brake;
     lastSteer = steer;
+
+    // --- Boost: charge from riding well, drain into a sprint on E ---
+    const airborne = state.y > 0.01;
+    if (Math.abs(state.speed) > BOOST.minChargeSpeed) {
+      if (env.onLane) state.boost += BOOST.laneChargeRate * dt;
+      if (env.draft) state.boost += BOOST.draftChargeRate * dt;
+    }
+    state.boost = THREE.MathUtils.clamp(state.boost, 0, 100);
+    state.boosting = !!input.boost && state.boost > 0 && state.speed > 1;
+    if (state.boosting) state.boost = Math.max(0, state.boost - BOOST.drainRate * dt);
+    state.overdrive = Math.max(0, state.overdrive - dt); // coffee wears off
+    const od = state.overdrive > 0 ? POWERUPS.coffeeMult : 1;
+    const topSpeed = BIKE.maxSpeed * (state.boosting ? BOOST.speedMult : 1) * od;
+    const accelNow = BIKE.accel * (state.boosting ? BOOST.accelMult : 1) * (od > 1 ? 1.3 : 1);
+
+    // --- Bunny hop ---
+    if (input.hop() && !airborne && Math.abs(state.speed) > HOP.minSpeed) {
+      state.vy = HOP.impulse;
+      state.hopped = true;
+    }
+    if (state.y > 0 || state.vy > 0) {
+      state.vy -= HOP.gravity * dt;
+      state.y = Math.max(0, state.y + state.vy * dt);
+      if (state.y === 0) {
+        // A hop lands at ~-4.5 m/s; anything much harder (a saucer dropping
+        // you, a rooftop excursion) is a crash landing.
+        if (state.vy < -7.5) crash();
+        state.vy = 0;
+      }
+    }
 
     // --- Longitudinal: throttle, brake, reverse, coast drag ---
     if (braking) {
@@ -50,8 +130,13 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
       if (Math.abs(state.speed) < BIKE.brakeDecel * dt) state.speed = 0;
     } else if (throttle > 0) {
       // Pressing forward while rolling backward brakes first, then accelerates.
-      const a = state.speed < 0 ? BIKE.brakeDecel : BIKE.accel;
-      state.speed = Math.min(state.speed + a * dt, BIKE.maxSpeed);
+      const a = state.speed < 0 ? BIKE.brakeDecel : accelNow;
+      if (state.speed > topSpeed) {
+        // Boost just ended: sag back to the cap instead of snapping to it.
+        state.speed = Math.max(topSpeed, state.speed - BIKE.rollDrag * dt);
+      } else {
+        state.speed = Math.min(state.speed + a * dt, topSpeed);
+      }
     } else if (throttle < 0) {
       const a = state.speed > 0 ? BIKE.brakeDecel : BIKE.accel;
       state.speed = Math.max(state.speed - a * dt, -BIKE.maxReverse);
@@ -64,9 +149,10 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
 
     // --- Steering: authority scales down with speed, dies near standstill ---
     const speedAbs = Math.abs(state.speed);
-    const authority = speedAbs < 0.4
+    let authority = speedAbs < 0.4
       ? speedAbs / 0.4 // ramp in from a stop so it can't pivot in place
       : 1 / (1 + speedAbs * BIKE.turnSpeedFalloff);
+    if (airborne) authority *= HOP.airSteer; // wheels aren't touching anything
     // Reverse inverts steering, like backing up any vehicle.
     // With forward = (-sin h, -cos h), turning right (toward +X) means *lowering*
     // heading, so steer=+1 (D / right) gets a negative yaw rate.
@@ -111,12 +197,12 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     state.z = r.z;
     crashCooldown = Math.max(0, crashCooldown - dt);
     if (r.hit) {
-      // A fast hit counts as a crash (debounced); slow contact is just a scrape.
-      if (Math.abs(state.speed) > 5 && crashCooldown === 0) {
-        state.crashes++;
-        crashCooldown = 1.2;
+      // A fast hit is a full wipeout (debounced); slow contact is just a scrape.
+      if (Math.abs(state.speed) > WIPEOUT.minSpeed) {
+        crash();
+      } else {
+        state.speed *= BIKE.hitSpeedKeep; // bleed momentum on a scrape
       }
-      state.speed *= BIKE.hitSpeedKeep; // bleed momentum either way
     }
 
     // --- Visual lean: bike tips into the turn, target ~ turn rate, smoothed ---
@@ -132,8 +218,17 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
   }
 
   function applyToModel(dt) {
-    bike.group.position.set(state.x, 0, state.z);
+    bike.group.position.set(state.x, state.y, state.z);
     bike.group.rotation.y = state.heading;
+
+    if (state.wipeout > 0) {
+      // Down: roll the chassis flat on its side and skid, nose slightly dug in.
+      // The lerp gives one readable "going down" frame even at 60fps.
+      bike.chassis.rotation.z += (1.35 - bike.chassis.rotation.z) * Math.min(1, dt * 14);
+      bike.chassis.rotation.x += (-0.18 - bike.chassis.rotation.x) * Math.min(1, dt * 14);
+      return;
+    }
+    bike.chassis.rotation.x *= Math.max(0, 1 - dt * 10); // recover from the tumble
     // Lean rolls the chassis about its local forward (-Z) axis.
     bike.chassis.rotation.z = state.lean;
 
@@ -145,5 +240,5 @@ export function createBikeController(bike, collider, spawn = {}, roadGraph = nul
     bike.steer.rotation.y = -lastSteer * 0.4;
   }
 
-  return { state, update, forwardVec };
+  return { state, update, forwardVec, crash };
 }

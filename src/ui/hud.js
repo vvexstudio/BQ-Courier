@@ -37,6 +37,8 @@ export function createHUD() {
     toastMain: el('toast-main'),
     toastSub: el('toast-sub'),
     minimap: el('minimap'),
+    ticker: el('ticker'),
+    boostbar: el('boostbar'),
   };
 
   const ctx = els.minimap.getContext('2d');
@@ -158,6 +160,18 @@ export function createHUD() {
     toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
   }
 
+  // --- ticker: fast little score/event popups (near-misses, combos, wipeouts).
+  // One line, latest event wins — at combo speed that reads as an update, not
+  // as lost information.
+  let tickerTimer = null;
+  function ping(text, bad = false) {
+    els.ticker.textContent = text;
+    els.ticker.classList.toggle('bad', bad);
+    els.ticker.classList.add('show');
+    clearTimeout(tickerTimer);
+    tickerTimer = setTimeout(() => els.ticker.classList.remove('show'), 1300);
+  }
+
   function setStatus(msg) {
     els.status.textContent = msg;
   }
@@ -182,6 +196,12 @@ export function createHUD() {
     els.fps.textContent = `${fps} fps`;
     els.elapsed.textContent = fmtElapsed(elapsed);
 
+    // Boost meter: amber charging, green full, magenta while firing.
+    const boost = bike.boost ?? 0;
+    els.boostbar.style.width = `${Math.round(boost)}%`;
+    els.boostbar.classList.toggle('full', boost >= 99.5 && !bike.boosting);
+    els.boostbar.classList.toggle('firing', !!bike.boosting);
+
     els.delivered.textContent = delivery.delivered;
     els.streak.textContent = `×${delivery.streak} STREAK`;
     els.crashes.textContent = bike.crashes ?? 0;
@@ -205,5 +225,5 @@ export function createHUD() {
     drawMap(delivery, bike);
   }
 
-  return { initMap, update, toast, setStatus };
+  return { initMap, update, toast, ping, setStatus };
 }

@@ -14,7 +14,7 @@ import { ROAD_WIDTHS, PALETTE } from '../config.js';
 const ROAD_Y = 0.15;
 const BIKE_Y = 0.4; // sits clearly above the road surface (avoids z-fighting)
 
-function isBikeLane(tags = {}) {
+export function isBikeLane(tags = {}) {
   if (tags.highway === 'cycleway') return true;
   if (tags.bicycle === 'designated') return true;
   return Object.keys(tags).some(
@@ -27,7 +27,8 @@ function widthFor(tags = {}) {
 }
 
 // Build a ribbon geometry from world-space points [{x,z}], at height y.
-function ribbon(points, width, y) {
+// Exported for the street-life pass (sidewalks are just offset ribbons).
+export function ribbon(points, width, y) {
   if (points.length < 2) return null;
   const half = width / 2;
   const pos = [];

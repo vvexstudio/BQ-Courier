@@ -18,10 +18,15 @@ import { createCollider } from './game/collision.js';
 import { createBikeController } from './game/bikeController.js';
 import { createChaseCam } from './render/chaseCam.js';
 import { createDelivery } from './game/delivery.js';
+import { createTraffic } from './game/traffic.js';
+import { createEscalation } from './game/escalation.js';
+import { createPowerups } from './game/powerups.js';
 import { createNavMarkers } from './render/markers.js';
 import { createRetroFX } from './render/retroFX.js';
+import { createSFX } from './audio/sfx.js';
 import { createHUD } from './ui/hud.js';
-import { WORLD } from './config.js';
+import { routeLength } from './world/roadGraph.js';
+import { WORLD, BOOST, POWERUPS } from './config.js';
 
 const app = document.getElementById('app');
 const hud = createHUD();
@@ -31,7 +36,7 @@ function setStatus(msg) {
   console.log('[bq]', msg);
 }
 
-const { renderer, scene, camera } = createScene(app);
+const { renderer, scene, camera, lights } = createScene(app);
 const fx = createRetroFX(renderer); // 16-bit pixelation + fisheye pass
 const input = createInput();
 const chaseCam = createChaseCam(camera);
@@ -45,9 +50,18 @@ orbit.maxPolarAngle = Math.PI * 0.49;
 orbit.enabled = false;
 let orbitMode = false;
 
+const sfx = createSFX(); // unlocks itself on the first keydown
+
 let bikeCtl = null;  // set once the world is built
 let delivery = null;
+let traffic = null;
+let escalation = null;
+let powerups = null;
+let graph = null;    // road graph, needed per-frame for the boost lane check
 let runTime = 0;     // elapsed ride time for the big HUD clock
+let lastCrashes = 0; // edge-detect wipeouts for sound + ticker
+let wasBoosting = false;
+let crashPinged = false; // traffic already ran a labeled wipeout ticker this frame
 
 // FPS readout
 let frames = 0;
@@ -56,7 +70,7 @@ let fps = 0;
 
 async function init() {
   try {
-    const { world, stats, footprints, spawn, roadGraph, addresses, roadLines } =
+    const { world, stats, footprints, spawn, roadGraph, addresses, roadLines, hydrants } =
       await buildWorld(WORLD.bbox, { onStatus: setStatus });
     scene.add(world);
 
@@ -68,19 +82,135 @@ async function init() {
 
     hud.initMap(roadLines);
 
+    graph = roadGraph;
+
+    // The street fights back: obstacles seeded along each order's route,
+    // roaming traffic, near-miss combos. Events route to score/HUD/sound here.
+    traffic = createTraffic({
+      scene,
+      roadGraph,
+      hydrants,
+      onEvent(type, data) {
+        if (type === 'nearmiss') {
+          delivery?.addScore(data.points);
+          // The neighborhood grades your riding. In Yiddish, obviously.
+          const call = data.combo >= 5 ? 'A MECHAYEH!'
+            : data.combo >= 3 ? 'SHTARK!'
+            : 'CLOSE CALL';
+          hud.ping(`${call} +${data.points}${data.combo > 1 ? ` · ×${data.combo}` : ''}`);
+          sfx.play('whoosh');
+        } else if (type === 'pigeons') {
+          delivery?.addScore(data.points);
+          hud.ping(`+${data.points} · ${data.count} PIGEONS FLUSHED`);
+          sfx.play('flutter');
+        } else if (type === 'soft') {
+          if (data.points) delivery?.addScore(data.points);
+          hud.ping(data.text ?? 'SPLAT');
+          sfx.play('blip');
+        } else if (type === 'crash') {
+          hud.ping(`OY GEVALT — ${data.label}`, true);
+          crashPinged = true;
+        } else if (type === 'bump') {
+          hud.ping(data.label, true);
+        } else if (type === 'horn') {
+          sfx.play('horn');
+        } else if (type === 'beep') {
+          sfx.play('beep');
+        } else if (type === 'door') {
+          sfx.play('creak');
+        } else if (type === 'skid') {
+          sfx.play('skid');
+        } else if (type === 'hydrant') {
+          sfx.play('splash');
+          hud.ping("HYDRANT'S OPEN");
+        } else if (type === 'argue') {
+          sfx.play('argue');
+        } else if (type === 'summit') {
+          hud.ping('THE SUMMIT CONTINUES', true);
+        } else if (type === 'rumble') {
+          sfx.play('rumble');
+        } else if (type === 'groan') {
+          sfx.play('groan');
+        } else if (type === 'roar') {
+          sfx.play('roar');
+        } else if (type === 'ufo') {
+          sfx.play('ufo');
+        } else if (type === 'dropped') {
+          hud.ping('CATCH AND RELEASE', true);
+        } else if (type === 'planecrash') {
+          sfx.play('explosion');
+          hud.ping('AIR TRAFFIC PROBLEM', true);
+        } else if (type === 'glazed') {
+          delivery?.addScore(data.points);
+          hud.ping(`GLAZED +${data.points}`);
+          sfx.play('glazed');
+        } else if (type === 'chant') {
+          sfx.play('chant');
+        } else if (type === 'party') {
+          sfx.play('party');
+        } else if (type === 'nigun') {
+          sfx.play('nigun');
+        } else if (type === 'hiccup') {
+          sfx.play('hiccup');
+        }
+      },
+    });
+
+    // The world ends gradually: tier by deliveries, environment lerp per frame.
+    escalation = createEscalation({
+      scene,
+      lights,
+      onTier(n, name) {
+        hud.toast(name, n >= 3 ? 'deliver anyway' : 'keep riding', n >= 2);
+        sfx.play(n >= 3 ? 'roar' : 'lose');
+        sfx.setMusicTier(n); // the bed follows the world down
+        traffic.setTier(n);
+      },
+    });
+
+    powerups = createPowerups({
+      scene,
+      onEvent(type, data) {
+        if (type !== 'powerup') return;
+        sfx.play('pickup');
+        const s = bikeCtl.state;
+        if (data.kind === 'pizza') {
+          s.boost = 100;
+          hud.ping('PIZZA — BOOST FULL');
+        } else if (data.kind === 'coffee') {
+          s.overdrive = POWERUPS.coffeeTime;
+          hud.ping('COFFEE — OVERDRIVE');
+        } else if (data.kind === 'shield') {
+          s.shield = true;
+          hud.ping('BAGEL SHIELD ON');
+        } else if (data.kind === 'clock') {
+          delivery?.addTime(POWERUPS.clockBonus);
+          hud.ping(`+${POWERUPS.clockBonus}s ON THE CLOCK`);
+        }
+      },
+    });
+
     delivery = createDelivery({
       addresses,
       roadGraph,
       onEvent(type, data) {
         if (type === 'order') {
           hud.toast('NEW ORDER', `${data.cargo} → ${data.label}`);
+          sfx.play('order');
+          traffic.seedRoute(delivery?.state.route ?? null);
+          powerups.seedRoute(delivery?.state.route ?? null);
         } else if (type === 'delivered') {
           hud.toast(
-            `DELIVERED! +${data.points}`,
+            `MAZEL TOV! +${data.points}`,
             data.streak > 1 ? `×${data.streak} streak · +${data.bonus} time bonus` : `+${data.bonus} time bonus`
           );
+          sfx.play('win');
         } else if (type === 'expired') {
-          hud.toast('ORDER EXPIRED', 'streak lost — new order incoming', true);
+          hud.toast('ORDER EXPIRED', 'oy vey — streak lost, new order incoming', true);
+          sfx.play('lose');
+        } else if (type === 'reroute') {
+          // New line on the map = new gauntlet on the street.
+          traffic.seedRoute(delivery?.state.route ?? null);
         }
       },
     });
@@ -89,7 +219,7 @@ async function init() {
     chaseCam.update(0.016, bikeCtl.state);
 
     // Dev handle for inspecting the scene graph from the console.
-    window.__bq = { scene, camera, world, bike, bikeCtl, collider, delivery, roadGraph, stats };
+    window.__bq = { scene, camera, world, bike, bikeCtl, collider, delivery, traffic, escalation, powerups, roadGraph, stats };
     setStatus(
       `${WORLD.name} — ${stats.buildings} buildings, ${stats.roads} roads, ` +
       `${stats.bikeLanes} bike lanes, ${addresses.length} addresses.`
@@ -118,17 +248,64 @@ function animate() {
 
   if (bikeCtl) {
     runTime += dt;
-    const s = bikeCtl.update(dt, input);
+
+    // Boost inputs the controller can't know on its own: are we on a bike
+    // lane, are we tucked behind a vehicle?
+    const st = bikeCtl.state;
+    const near = graph?.nearestOnRoad(st.x, st.z);
+    const env = {
+      onLane: !!(near?.seg?.bike && near.dist < BOOST.laneWidth),
+      draft: traffic ? traffic.draft(st) : false,
+    };
+
+    const s = bikeCtl.update(dt, input, env);
+    if (s.hopped) sfx.play('hop');
+    if (s.boosting && !wasBoosting) sfx.play('boost');
+    wasBoosting = s.boosting;
+
+    if (input.pressed('KeyB')) {
+      sfx.play('bell');
+      traffic?.ring(s);
+    }
+    if (input.pressed('KeyQ') && s.wipeout === 0) {
+      sfx.play('toss');
+      traffic?.throwBagel(s);
+    }
+    if (s.shieldUsed) {
+      s.shieldUsed = false;
+      hud.ping('BAGEL SHIELD SPENT', true);
+      sfx.play('glazed');
+    }
+
+    // Obstacles move, collide, and score before the camera looks at anything.
+    if (traffic && delivery) {
+      const dl = delivery.state;
+      const progress = dl.route ? Math.max(0, routeLength(dl.route) - dl.distLeft) : 0;
+      traffic.update(dt, s, bikeCtl, progress);
+    }
+
+    // Any wipeout this frame (building, car, leash…) sounds the same; traffic
+    // already ran a labeled ticker for its own, so only add the generic one.
+    if (s.crashes > lastCrashes) {
+      sfx.play('crash');
+      if (!crashPinged) hud.ping('WIPEOUT', true);
+      lastCrashes = s.crashes;
+    }
+    crashPinged = false;
+
+    if (powerups) powerups.update(dt, s);
+
+    if (delivery) {
+      const d = delivery.update(dt, s);
+      nav.update(dt, d, s, delivery.aimPoint());
+      if (escalation) escalation.update(dt, d.delivered);
+    }
+
     if (orbitMode) {
       orbit.target.set(s.x, 1, s.z);
       orbit.update();
     } else {
       chaseCam.update(dt, s);
-    }
-
-    if (delivery) {
-      const d = delivery.update(dt, s);
-      nav.update(dt, d, s, delivery.aimPoint());
     }
   }
 

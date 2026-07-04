@@ -188,5 +188,18 @@ export function createDelivery({ addresses, roadGraph, onEvent }) {
     return state;
   }
 
-  return { state, update, aimPoint };
+  // Style points from the street (near-misses, pigeons, trash) land on the
+  // same score the deliveries feed — one number to brag about.
+  function addScore(points) {
+    state.score += points;
+  }
+
+  // Powerup hook: buy seconds on the active order (clamped to the limit so a
+  // hoarded clock can't make an order *longer* than it started).
+  function addTime(s) {
+    if (state.phase !== 'riding') return;
+    state.timeLeft = Math.min(state.timeLimit, state.timeLeft + s);
+  }
+
+  return { state, update, aimPoint, addScore, addTime };
 }

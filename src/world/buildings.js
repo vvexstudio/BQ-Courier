@@ -24,6 +24,9 @@ export function buildBuildings(buildingWays) {
   const geoms = [];
   // World-space XZ footprint rings, kept for the collider (Phase 2).
   const footprints = [];
+  // Roof records for the street-life pass (water towers, AC units): centroid,
+  // height, and rough footprint size so clutter only lands on real roofs.
+  const roofs = [];
 
   // 16-bit facades: each building gets one flat color from the Williamsburg
   // variant palette, with a touch of per-building lightness jitter so two
@@ -53,6 +56,23 @@ export function buildBuildings(buildingWays) {
     footprints.push(footprint);
 
     const height = heightForTags(way.tags);
+    {
+      let sx = 0, sz = 0;
+      let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+      for (const p of footprint) {
+        sx += p.x; sz += p.z;
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      }
+      roofs.push({
+        x: sx / footprint.length,
+        z: sz / footprint.length,
+        h: height,
+        span: Math.min(maxX - minX, maxZ - minZ), // narrow dimension of the roof
+      });
+    }
     const geom = new THREE.ExtrudeGeometry(shape, {
       depth: height,
       bevelEnabled: false,
@@ -76,6 +96,7 @@ export function buildBuildings(buildingWays) {
   const group = new THREE.Group();
   group.name = 'buildings';
   group.userData.footprints = footprints;
+  group.userData.roofs = roofs;
   if (geoms.length === 0) return group;
 
   const merged = mergeGeometries(geoms, false);
