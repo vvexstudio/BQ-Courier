@@ -91,11 +91,11 @@ Then open the URL Vite prints (it auto-opens). On first load the app fetches
 South Williamsburg from the public Overpass API and caches it in `localStorage`,
 so subsequent loads are instant.
 
-- **W / S** throttle & brake-reverse · **A / D** steer · **Space** brake.
+- **W / S** throttle & brake-reverse · **A / D** steer.
+- **Space** (or **Q**) throws a bagel — stuns zombies, hurries everyone else.
 - **Shift** bunny hop (clears leashes, trash piles, sinkholes, lava) · **E**
   boost (meter charges on unblocked bike lanes and while drafting vehicles) ·
-  **B** bell (scatters pedestrians and pigeons) · **Q** bagel toss (stuns
-  zombies, hurries everyone else).
+  **B** bell (scatters pedestrians and pigeons).
 - **O** toggles a debug free-cam (drag to orbit · scroll to zoom · right-drag to pan).
 - **On a phone** (portrait, one thumb): the bike auto-throttles from your
   first touch. The lower part of the screen is one gesture surface — hold

@@ -234,10 +234,14 @@ export const PALETTE = {
   ],
 };
 
-// Retro render pass: draw the scene small, upscale nearest-neighbor (the 16-bit
-// pixel look), and bend it slightly in the upscale shader (subtle fisheye).
+// Retro render pass, SNES edition (art pass 2026-07-04): full-frame nearest-
+// neighbor upscale — no fisheye, no TV bezel — with a 16-bit color grade:
+// saturation/contrast push, then ordered-dither quantization so gradients
+// break into Bayer crosshatch instead of banding.
 export const FX = {
-  pixelScale: 3,  // render at 1/pixelScale of the canvas — bigger = chunkier
-  fisheye: 0.45,  // barrel distortion strength; 0 disables
-  fov: 70,        // a touch wide, sells the lens
+  pixelScale: 2,    // render at 1/2 res — finer than the old chunky 1/3
+  fov: 70,
+  saturation: 1.22, // SNES colors are confident
+  contrast: 1.06,
+  levels: 31,       // quantization steps per channel (5-bit, era-correct)
 };

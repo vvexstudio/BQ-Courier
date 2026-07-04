@@ -37,7 +37,7 @@ function setStatus(msg) {
   console.log('[bq]', msg);
 }
 
-const { renderer, scene, camera, lights } = createScene(app);
+const { renderer, scene, camera, lights, sky } = createScene(app);
 const fx = createRetroFX(renderer); // 16-bit pixelation + fisheye pass
 const input = createInput();
 createTouchControls(); // portrait thumbs feed the same key events as WASD
@@ -165,6 +165,7 @@ async function init() {
     escalation = createEscalation({
       scene,
       lights,
+      sky,
       onTier(n, name) {
         hud.toast(name, n >= 3 ? 'deliver anyway' : 'keep riding', n >= 2);
         sfx.play(n >= 3 ? 'roar' : 'lose');
@@ -274,7 +275,9 @@ function animate() {
       sfx.play('bell');
       traffic?.ring(s);
     }
-    if (input.pressed('KeyQ') && s.wipeout === 0) {
+    // Space or Q lobs the bagel (Space freed up when S took over braking).
+    const shoot = input.pressed('Space');
+    if ((input.pressed('KeyQ') || shoot) && s.wipeout === 0) {
       sfx.play('toss');
       traffic?.throwBagel(s);
     }

@@ -10,12 +10,12 @@
 import * as THREE from 'three';
 import { ESCALATION } from '../config.js';
 
-export function createEscalation({ scene, lights, onTier }) {
+export function createEscalation({ scene, lights, sky, onTier }) {
   let tier = 0;
 
   // Live color instances we mutate in place each frame.
   const cur = {
-    sky: scene.background.clone(),
+    sky: new THREE.Color(ESCALATION.env[0].sky),
     fog: scene.fog.color.clone(),
     fogNear: scene.fog.near,
     fogFar: scene.fog.far,
@@ -52,7 +52,7 @@ export function createEscalation({ scene, lights, onTier }) {
     cur.sunI += (env.sunI - cur.sunI) * k;
     cur.hemiI += (env.hemiI - cur.hemiI) * k;
 
-    scene.background.copy(cur.sky);
+    sky.set(cur.sky, cur.fog); // gradient redraw: zenith from sky, horizon from fog
     scene.fog.color.copy(cur.fog);
     scene.fog.near = cur.fogNear;
     scene.fog.far = cur.fogFar;

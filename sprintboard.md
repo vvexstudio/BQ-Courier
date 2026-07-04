@@ -313,6 +313,40 @@ Short ADR-style records of choices that aren't obvious from the code.
 
 ## 📓 Changelog
 
+- **2026-07-04 (branch: art/snes-16bit, cont.)** — **Space shoots; modern
+  nav line; minimap route overlay.** Space was demoted from brake (S already
+  brakes-then-reverses through the throttle path) and promoted to the bagel
+  trigger alongside Q. The route ribbon was rebuilt as a modern GPS line:
+  slimmer soft-edged amber band with bright chevrons marching toward the
+  drop at 7 m/s (ribbon geometry now carries distance-along-route UVs; the
+  chevron tip leads at the centerline so the arrows point the way).
+  **Gotcha for the decision log**: the renderer's logarithmic depth buffer
+  means raw ShaderMaterials must include the `logdepthbuf` chunks or every
+  fragment silently loses the depth test — the ribbon rendered nothing until
+  those went in. The minimap route is now an unmissable overlay: bold amber
+  body with an animated white dash marching toward the goal. Debugging
+  footnote: Vite HMR re-runs of main.js stack extra canvases under #app;
+  only a hard reload shows current code — cost twenty minutes of staring at
+  a stale frame.
+- **2026-07-04 (branch: art/snes-16bit)** — **The SNES art pass.** Less
+  Atari, more Super Nintendo, on a feature branch:
+  - **TV frame gone**: `retroFX.js` rewritten — no fisheye, no bezel, the
+    game is the whole screen. Pixel scale 3→2 (finer, still pixel art).
+  - **16-bit color pipeline** in the upscale shader: saturation 1.22 +
+    contrast 1.06, then **4×4 Bayer ordered-dither quantization to 5 bits
+    per channel** — flat fills stay flat, gradients break into era-correct
+    crosshatch instead of banding. Dither rides the low-res pixel grid.
+  - **Gradient sky**: scene.background is now a 1×128 canvas gradient
+    (deep zenith → fog-colored horizon), redrawn by the escalation each
+    frame via a `sky.set(top, horizon)` handle from `createScene`.
+  - **Procedural facade windows** (`buildings.js`, onBeforeCompile):
+    world-space window grids on near-vertical faces — floors every 3 m,
+    bays every 2.6 m, dark glass with sky-glint variation, ~8% warmly lit,
+    sill shading, storefront-darkened ground floor with a lintel line.
+    Zero geometry cost; still one merged draw call.
+  - **Verified live** at tier 0 (blue Brooklyn: windows, dithered sky
+    gradient, full-bleed frame) and tier 3 (deep red gradient, glowing lit
+    windows, purple-washed streets). No console errors; build clean.
 - **2026-07-04 (last call)** — **One-thumb touch rework.** The button rig
   lasted one commit; replaced with a single gesture surface (`ui/touch.js`
   rewrite): the lower 40% of the screen splits into three bands — FIRE

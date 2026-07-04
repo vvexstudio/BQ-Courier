@@ -36,8 +36,10 @@ export function createInput(target = window) {
     get throttle() {
       return held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown');
     },
+    // Dedicated brake key retired (2026-07-04): S already brakes-then-reverses
+    // through the throttle path, and Space was promoted to the bagel trigger.
     get brake() {
-      return DOWN.has('Space');
+      return false;
     },
     // Hold to dump the boost meter into a sprint.
     get boost() {
